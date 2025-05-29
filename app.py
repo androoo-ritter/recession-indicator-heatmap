@@ -65,6 +65,7 @@ FRED_SOURCES = {
 CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQSg0j0ZpwXjDgSS1IEA4MA2-SwTbAhNgy8hqQVveM4eeWWIg6zxgMq-NpUIZBzQvssY2LsSo3kfc8x/pub?gid=995887444&single=true&output=csv"
 
 @st.cache_data
+
 def load_data():
     df = pd.read_csv(CSV_URL)
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
@@ -74,9 +75,11 @@ def load_data():
     return df
 
 def color_for_value(attr, val):
-    if attr not in THRESHOLDS or pd.isnull(val):
+    if pd.isna(val):
         return 'gray'
-    t = THRESHOLDS[attr]
+    t = THRESHOLDS.get(attr)
+    if not t:
+        return 'gray'
     if val <= t['green']:
         return 'green'
     elif val <= t['yellow']:
@@ -95,19 +98,19 @@ def create_heatmap(df, selected_months):
 
     pivot_df = full_df.pivot(index='MonthYear', columns='Attribute', values='Value').sort_index(ascending=False)
 
-    colors = []
-    for dt in pivot_df.index:
-        colors.append([color_for_value(attr, pivot_df.at[dt, attr]) for attr in pivot_df.columns])
+    colors = [
+        [color_for_value(attr, pivot_df.at[dt, attr]) for attr in pivot_df.columns]
+        for dt in pivot_df.index
+    ]
 
-    hover_text = []
-    for dt in pivot_df.index:
-        row = []
-        dt_str = dt.strftime("%b %Y")
-        for attr in pivot_df.columns:
-            val = pivot_df.at[dt, attr]
-            val_str = f"{val:.2f}" if pd.notnull(val) else "N/A"
-            row.append(f"<b>{attr}</b><br>{dt_str}<br>Median: {val_str}")
-        hover_text.append(row)
+    hover_text = [
+        [
+            f"<b>{attr}</b><br>{dt.strftime('%b %Y')}<br>Median: {pivot_df.at[dt, attr]:.2f}" if pd.notna(pivot_df.at[dt, attr])
+            else f"<b>{attr}</b><br>{dt.strftime('%b %Y')}<br>No Data"
+            for attr in pivot_df.columns
+        ]
+        for dt in pivot_df.index
+    ]
 
     color_map = {'green': 0, 'yellow': 0.5, 'red': 1, 'gray': 0.25}
     z_colors = np.array([[color_map.get(c, 0.25) for c in row] for row in colors])
@@ -124,20 +127,19 @@ def create_heatmap(df, selected_months):
         ygap=2
     ))
 
-    annotations = []
-    for y_idx, dt in enumerate(pivot_df.index):
-        for x_idx, attr in enumerate(pivot_df.columns):
-            val = pivot_df.at[dt, attr]
-            if pd.notnull(val):
-                annotations.append(dict(
-                    x=attr,
-                    y=dt.strftime("%b %Y"),
-                    text=f"{val:.2f}",
-                    showarrow=False,
-                    font=dict(color="black", size=10),
-                    xanchor="center",
-                    yanchor="middle"
-                ))
+    annotations = [
+        dict(
+            x=attr,
+            y=dt.strftime("%b %Y"),
+            text=f"{pivot_df.at[dt, attr]:.2f}" if pd.notna(pivot_df.at[dt, attr]) else "",
+            showarrow=False,
+            font=dict(color="black", size=10),
+            xanchor="center",
+            yanchor="middle"
+        )
+        for y_idx, dt in enumerate(pivot_df.index)
+        for x_idx, attr in enumerate(pivot_df.columns)
+    ]
 
     fig.update_layout(
         xaxis=dict(side='top'),
@@ -145,17 +147,21 @@ def create_heatmap(df, selected_months):
         annotations=annotations,
         margin=dict(l=150, r=20, t=120, b=40),
         template='plotly_white',
-        height=min(1600, 40 * len(pivot_df))  # dynamic height
+        height=min(1600, 40 * len(pivot_df))
     )
-
     return fig
 
 def main():
     st.set_page_config(page_title="MacroGamut Economic Recession Indicator", layout="wide")
-    st.image("https://github.com/androoo-ritter/recession-indicator-heatmap/blob/main/logo.png?raw=true", width=50)
-    st.markdown("<h1 style='margin-bottom: -10px;'>MacroGamut Economic Recession Indicator</h1>", unsafe_allow_html=True)
 
-    with st.expander("📘 Disclaimer", expanded=False):
+    # Logo and title in the same row
+    col1, col2 = st.columns([1, 8])
+    with col1:
+        st.image("https://github.com/androoo-ritter/recession-indicator-heatmap/blob/main/logo.png?raw=true", width=75)
+    with col2:
+        st.markdown("<h1 style='margin-top: 20px;'>MacroGamut Economic Recession Indicator</h1>", unsafe_allow_html=True)
+
+    with st.expander("🛡️ Disclaimer", expanded=False):
         st.markdown("""
         This dashboard uses publicly available economic time series data from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/) database.  
         It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
@@ -164,30 +170,13 @@ def main():
         this tool aggregates data by computing the **median value for each indicator per month**.
         """)
 
-    with st.expander("🟦 Color Legend", expanded=False):
+    with st.expander("🎨 Color Legend", expanded=False):
         st.markdown("""
         - 🟩 **Green**: Healthy/expected range  
         - 🟨 **Yellow**: Caution  
         - 🟥 **Red**: Warning / likely signal  
         - ⬜ **Grey**: No data available for that month
         """)
-
-    df = load_data()
-
-    all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
-    all_months = sorted(all_months, reverse=True)
-    month_labels = [d.strftime("%b %Y") for d in all_months]
-    month_map = dict(zip(month_labels, all_months))
-
-    selected_labels = st.multiselect(
-        "Filter by Month-Year:",
-        options=month_labels,
-        default=month_labels[:36]
-    )
-    selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
-
-    fig = create_heatmap(df, selected_months)
-    st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("🎯 View Thresholds by Data Point", expanded=False):
         threshold_df = pd.DataFrame([
@@ -201,6 +190,23 @@ def main():
         st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
             f"<tr><td>{dp}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
             for dp, url in FRED_SOURCES.items()) + "</tbody></table>", unsafe_allow_html=True)
+
+    df = load_data()
+
+    all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
+    all_months = sorted(all_months, reverse=True)
+    month_labels = [d.strftime("%b %Y") for d in all_months]
+    month_map = dict(zip(month_labels, all_months))
+
+    selected_labels = st.multiselect(
+        "Filter by Month-Year:",
+        options=month_labels,
+        default=month_labels[:36]  # Latest 3 years
+    )
+    selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
+
+    fig = create_heatmap(df, selected_months)
+    st.plotly_chart(fig, use_container_width=True)
 
 if __name__ == "__main__":
     main()
