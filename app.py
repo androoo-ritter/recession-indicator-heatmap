@@ -111,8 +111,19 @@ def create_heatmap(df, selected_months):
             row.append(f"<b>{attr}</b><br>{dt_str}<br>Median: {val_str}")
         hover_text.append(row)
 
-    color_map = {'green': 0, 'yellow': 0.5, 'red': 1, 'gray': 0.75}
-    z_colors = np.array([[color_map.get(c, 0.75) for c in row] for row in colors])
+    color_map = {'green': 0, 'yellow': 0.5, 'red': 1, 'gray': 2}
+    z_colors = np.array([[color_map.get(c, 2) for c in row] for row in colors])
+
+    colorscale = [
+        [0.0, 'green'],
+        [0.4999, 'green'],
+        [0.5, 'yellow'],
+        [0.9999, 'yellow'],
+        [1.0, 'red'],
+        [1.9999, 'red'],
+        [2.0, 'lightgray'],
+        [2.0, 'lightgray'],
+    ]
 
     fig = go.Figure(data=go.Heatmap(
         z=z_colors,
@@ -120,12 +131,7 @@ def create_heatmap(df, selected_months):
         y=[d.strftime("%b %Y") for d in pivot_df.index],
         text=hover_text,
         hoverinfo='text',
-        colorscale=[
-            [0, 'green'],
-            [0.5, 'yellow'],
-            [1, 'red'],
-            [0.75, 'lightgrey']
-        ],
+        colorscale=colorscale,
         showscale=False,
         xgap=2,
         ygap=2
@@ -152,7 +158,7 @@ def create_heatmap(df, selected_months):
         annotations=annotations,
         margin=dict(l=150, r=20, t=120, b=40),
         template='plotly_white',
-        height=min(1600, 40 * len(pivot_df))  # dynamic height
+        height=min(1600, 40 * len(pivot_df))
     )
 
     return fig
@@ -208,7 +214,7 @@ def main():
     selected_labels = st.multiselect(
         "Filter by Month-Year:",
         options=month_labels,
-        default=month_labels[:36]  # Latest 3 years
+        default=month_labels[:36]
     )
     selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
 
