@@ -74,9 +74,9 @@ def load_data():
     return df
 
 def color_for_value(attr, val):
-    t = THRESHOLDS.get(attr)
-    if val is None or attr not in THRESHOLDS:
+    if attr not in THRESHOLDS or pd.isna(val):
         return "lightgrey"
+    t = THRESHOLDS[attr]
     if val <= t["green"]:
         return "green"
     elif val <= t["yellow"]:
@@ -92,7 +92,7 @@ def create_heatmap(df):
     colors = [[color_for_value(col, val) for col in pivot_df.columns] for val in pivot_df.values]
 
     fig = go.Figure(data=go.Heatmap(
-        z=[[1]*len(pivot_df.columns)]*len(pivot_df.index),  # dummy z values
+        z=[[1]*len(pivot_df.columns)]*len(pivot_df.index),
         x=pivot_df.columns,
         y=pivot_df.index.strftime("%b %Y"),
         text=z_text,
