@@ -25,7 +25,7 @@ THRESHOLDS = {
     'Real GDP': {'green': 0, 'yellow': -1, 'red_expl': 'Economic contraction'},
     'Retail Sales': {'green': 0, 'yellow': -1, 'red_expl': 'Declining consumer spending'},
     'Sahm': {'green': 0.5, 'yellow': 0.8, 'red_expl': 'Likely start of a recession'},
-    'SP500': {'green': 0, 'yellow': -5, 'red_expl': 'Major market decline'},  # Corrected from 'S&P500'
+    'SP500': {'green': 0, 'yellow': -5, 'red_expl': 'Major market decline'},  # Corrected
     'Transport Jobs': {'green': 0, 'yellow': -20000, 'red_expl': 'Demand-side weakness'},
     'Unemployment': {'green': 4, 'yellow': 6, 'red_expl': 'Labor market deterioration'},
     'USHY': {'green': 4, 'yellow': 6, 'red_expl': 'Risk premium surging'},
@@ -134,8 +134,13 @@ def create_heatmap(df, selected_months):
 
 def main():
     st.set_page_config(page_title="MacroGamut Economic Recession Indicator", layout="wide")
-    st.image("logo.png", width=70)
-    st.markdown("<h1 style='margin-top: -60px;'>MacroGamut Economic Recession Indicator</h1>", unsafe_allow_html=True)
+
+    st.markdown("""
+        <div style='display: flex; align-items: center; gap: 15px; margin-bottom: -10px;'>
+            <img src='https://raw.githubusercontent.com/androoo-ritter/recession-indicator-heatmap/main/logo.png' width='60'/>
+            <h1 style='margin: 0;'>MacroGamut Economic Recession Indicator</h1>
+        </div>
+    """, unsafe_allow_html=True)
 
     with st.expander("ℹ️ Disclaimer", expanded=False):
         st.markdown("""
