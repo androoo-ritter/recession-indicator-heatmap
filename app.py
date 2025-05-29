@@ -33,7 +33,6 @@ THRESHOLDS = {
     'VIX': {'green': 20, 'yellow': 30, 'red_expl': 'High market volatility'},
 }
 
-# FRED series references
 FRED_SOURCES = {
     "3-Month": "https://fred.stlouisfed.org/series/DGS3MO",
     "20-Year": "https://fred.stlouisfed.org/series/DGS20",
@@ -148,7 +147,7 @@ def create_heatmap(df, selected_months):
         annotations=annotations,
         margin=dict(l=150, r=20, t=120, b=40),
         template='plotly_white',
-        height=min(1600, 40 * len(pivot_df))
+        height=min(1600, 40 * len(pivot_df))  # dynamic height
     )
 
     return fig
@@ -156,15 +155,12 @@ def create_heatmap(df, selected_months):
 def main():
     st.set_page_config(page_title="MacroGamut Economic Recession Indicator", layout="wide")
 
-    # Header with logo
-    col1, col2 = st.columns([0.08, 0.92])
-    with col1:
-        st.image("logo.png", width=45)
-    with col2:
-        st.markdown(
-            "<div style='padding-top: 10px; font-size: 24px; font-weight: bold;'>MacroGamut Economic Recession Indicator</div>",
-            unsafe_allow_html=True
-        )
+    st.markdown("""
+        <div style="display: flex; align-items: center; margin-bottom: -10px;">
+            <img src="https://raw.githubusercontent.com/your-username/your-repo/main/logo.png" width="40" style="margin-right: 10px;" />
+            <h1 style="margin: 0; font-size: 24px;">MacroGamut Economic Recession Indicator</h1>
+        </div>
+    """, unsafe_allow_html=True)
 
     with st.expander("📌 Disclaimer", expanded=False):
         st.markdown("""
@@ -206,7 +202,7 @@ def main():
     selected_labels = st.multiselect(
         "Filter by Month-Year:",
         options=month_labels,
-        default=month_labels[:36]  # Latest 3 years
+        default=month_labels[:36]
     )
     selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
 
