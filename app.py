@@ -167,7 +167,7 @@ def create_heatmap(df, selected_months):
             val = pivot_df.at[dt, attr]
             if pd.notnull(val):
                 annotations.append(dict(
-                    x=attr,
+                    x=ATTRIBUTE_LABELS.get(attr, attr),
                     y=dt.strftime("%b %Y"),
                     text=f"{val:.2f}",
                     showarrow=False,
