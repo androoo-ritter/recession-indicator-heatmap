@@ -173,6 +173,19 @@ def main():
         - ⬜ **Grey**: No data available for that month
         """)
 
+    with st.expander("🎯 View Thresholds by Data Point"):
+        threshold_df = pd.DataFrame([
+            {"Data Point": attr, "Green ≤": v["green"], "Yellow ≤": v["yellow"], "Red =": f">{v['yellow']}", "Explanation": v['red_expl']}
+            for attr, v in THRESHOLDS.items()
+        ])
+        st.dataframe(threshold_df, use_container_width=True)
+
+    with st.expander("📎 View FRED Data Source Reference"):
+        st.markdown("Each metric below links directly to its FRED series page.")
+        st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
+            f"<tr><td>{dp}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
+            for dp, url in FRED_SOURCES.items()) + "</tbody></table>", unsafe_allow_html=True)
+
     df = load_data()
 
     all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
@@ -189,19 +202,6 @@ def main():
 
     fig = create_heatmap(df, selected_months)
     st.plotly_chart(fig, use_container_width=True)
-
-    with st.expander("🎯 View Thresholds by Data Point"):
-        threshold_df = pd.DataFrame([
-            {"Data Point": attr, "Green ≤": v["green"], "Yellow ≤": v["yellow"], "Red =": f">{v['yellow']}", "Explanation": v['red_expl']}
-            for attr, v in THRESHOLDS.items()
-        ])
-        st.dataframe(threshold_df, use_container_width=True)
-
-    with st.expander("📎 View FRED Data Source Reference"):
-        st.markdown("Each metric below links directly to its FRED series page.")
-        st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
-            f"<tr><td>{dp}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
-            for dp, url in FRED_SOURCES.items()) + "</tbody></table>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
