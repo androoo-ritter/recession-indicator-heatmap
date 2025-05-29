@@ -33,6 +33,36 @@ THRESHOLDS = {
     'VIX': {'green': 20, 'yellow': 30, 'red_expl': 'High market volatility'},
 }
 
+#Changes naming convention for heatmap attribute titles
+ATTRIBUTE_LABELS = {
+    '3-Month': '3-Month Treasury',
+    '20-Year': '20-Year Treasury',
+    '30-Year': '30-Year Treasury',
+    'Bank Credit': 'Bank Credit (Billions)',
+    'Claims': 'Claims',
+    'Consumer Sentiment': 'Consumer Sentiment',
+    'Continued Claims': 'Continued Claims',
+    'Core CPI': 'Core CPI',
+    'CPI': 'CPI',
+    'Credit Card Delinquency': 'CC Delinquency (%)',
+    'Employment': 'Unemployment Rate',
+    'Loans and Leases': 'Loans & Leases (Billions)',
+    'M1': 'M1 (Billions)',
+    'M2': 'M2 (Billions)',
+    'Mortgage Delinquency': 'Mortgage Delinquency Rate',
+    'Payrolls': 'Nonfarm Payrolls (Thousands)',
+    'Real FFR': 'Fed Funds Rate',
+    'Real GDP': 'Real GDP',
+    'Retail Sales': 'Retail Sales (Millions)',
+    'Sahm': 'Sahm',
+    'SP500': 'S&P 500',
+    'Transport Jobs': 'Transport Jobs (Thousands)',
+    'Unemployment': 'Unemployment Rate (%)',
+    'USHY': 'US HY Index',
+    'USIG': 'US IG Index',
+    'VIX': 'VIX',
+}
+
 FRED_SOURCES = {
     "3-Month": "https://fred.stlouisfed.org/series/DGS3MO",
     "20-Year": "https://fred.stlouisfed.org/series/DGS20",
@@ -116,7 +146,7 @@ def create_heatmap(df, selected_months):
 
     fig = go.Figure(data=go.Heatmap(
         z=z_colors,
-        x=pivot_df.columns,
+        x=[ATTRIBUTE_LABELS.get(attr, attr) for attr in pivot_df.columns],
         y=[d.strftime("%b %Y") for d in pivot_df.index],
         text=hover_text,
         hoverinfo='text',
@@ -191,7 +221,7 @@ def main():
 
     with st.expander("🎯 View Thresholds by Data Point", expanded=False):
         threshold_df = pd.DataFrame([
-            {"Data Point": attr, "Green ≤": v["green"], "Yellow ≤": v["yellow"], "Red =": f">{v['yellow']}", "Explanation": v['red_expl']}
+            {"Data Point": ATTRIBUTE_LABELS.get(attr, attr), "Green ≤": v["green"], "Yellow ≤": v["yellow"], "Red =": f">{v['yellow']}", "Explanation": v['red_expl"]}
             for attr, v in THRESHOLDS.items()
         ])
         st.dataframe(threshold_df, use_container_width=True)
@@ -199,7 +229,7 @@ def main():
     with st.expander("📎 View FRED Data Source Reference", expanded=False):
         st.markdown("Each metric below links directly to its FRED series page.")
         st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
-            f"<tr><td>{dp}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
+            f"<tr><td>{ATTRIBUTE_LABELS.get(dp, dp)}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
             for dp, url in FRED_SOURCES.items()) + "</tbody></table>", unsafe_allow_html=True)
 
     df = load_data()
