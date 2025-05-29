@@ -3,34 +3,34 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# Thresholds per attribute
+# Thresholds per attribute with red zone explanation
 THRESHOLDS = {
-    '3-Month': {'green': 1.5, 'yellow': 3},
-    '20-Year': {'green': 2, 'yellow': 4},
-    '30-Year': {'green': 2, 'yellow': 4},
-    'Bank Credit': {'green': 0, 'yellow': -2},
-    'Claims': {'green': 200000, 'yellow': 300000},
-    'Consumer Sentiment': {'green': 70, 'yellow': 50},
-    'Continued Claims': {'green': 1500000, 'yellow': 2500000},
-    'Core CPI': {'green': 2, 'yellow': 4},
-    'CPI': {'green': 2, 'yellow': 4},
-    'Credit Card Delinquency': {'green': 2, 'yellow': 4},
-    'Employment': {'green': 100000, 'yellow': 0},
-    'Loans and Leases': {'green': 0, 'yellow': -2},
-    'M1': {'green': 0, 'yellow': -2},
-    'M2': {'green': 0, 'yellow': -2},
-    'Mortgage Delinquency': {'green': 2, 'yellow': 4},
-    'Payrolls': {'green': 0, 'yellow': -100000},
-    'Real FFR': {'green': 0, 'yellow': 1},
-    'Real GDP': {'green': 0, 'yellow': -1},
-    'Retail Sales': {'green': 0, 'yellow': -1},
-    'Sahm': {'green': 0.5, 'yellow': 0.8},
-    'S&P500': {'green': 0, 'yellow': -5},
-    'Transport Jobs': {'green': 0, 'yellow': -20000},
-    'Unemployment': {'green': 4, 'yellow': 6},
-    'USHY': {'green': 4, 'yellow': 6},
-    'USIG': {'green': 2, 'yellow': 4},
-    'VIX': {'green': 20, 'yellow': 30},
+    '3-Month': {'green': 1.5, 'yellow': 3, 'red_expl': 'Excessively high short-term interest rates'},
+    '20-Year': {'green': 2, 'yellow': 4, 'red_expl': 'Long-term rates may signal inflation or instability'},
+    '30-Year': {'green': 2, 'yellow': 4, 'red_expl': 'Long-term borrowing costs high'},
+    'Bank Credit': {'green': 0, 'yellow': -2, 'red_expl': 'Contraction in lending activity'},
+    'Claims': {'green': 200000, 'yellow': 300000, 'red_expl': 'Spike in unemployment claims'},
+    'Consumer Sentiment': {'green': 70, 'yellow': 50, 'red_expl': 'Low consumer confidence'},
+    'Continued Claims': {'green': 1500000, 'yellow': 2500000, 'red_expl': 'Extended unemployment'},
+    'Core CPI': {'green': 2, 'yellow': 4, 'red_expl': 'Elevated core inflation'},
+    'CPI': {'green': 2, 'yellow': 4, 'red_expl': 'Elevated inflation'},
+    'Credit Card Delinquency': {'green': 2, 'yellow': 4, 'red_expl': 'Consumers struggling with debt'},
+    'Employment': {'green': 100000, 'yellow': 0, 'red_expl': 'Net job losses'},
+    'Loans and Leases': {'green': 0, 'yellow': -2, 'red_expl': 'Decrease in bank lending'},
+    'M1': {'green': 0, 'yellow': -2, 'red_expl': 'Shrinking money supply'},
+    'M2': {'green': 0, 'yellow': -2, 'red_expl': 'Shrinking broader money supply'},
+    'Mortgage Delinquency': {'green': 2, 'yellow': 4, 'red_expl': 'Housing distress'},
+    'Payrolls': {'green': 0, 'yellow': -100000, 'red_expl': 'Significant job loss'},
+    'Real FFR': {'green': 0, 'yellow': 1, 'red_expl': 'Restrictive monetary policy'},
+    'Real GDP': {'green': 0, 'yellow': -1, 'red_expl': 'Economic contraction'},
+    'Retail Sales': {'green': 0, 'yellow': -1, 'red_expl': 'Declining consumer spending'},
+    'Sahm': {'green': 0.5, 'yellow': 0.8, 'red_expl': 'Likely start of a recession'},
+    'S&P500': {'green': 0, 'yellow': -5, 'red_expl': 'Major market decline'},
+    'Transport Jobs': {'green': 0, 'yellow': -20000, 'red_expl': 'Demand-side weakness'},
+    'Unemployment': {'green': 4, 'yellow': 6, 'red_expl': 'Labor market deterioration'},
+    'USHY': {'green': 4, 'yellow': 6, 'red_expl': 'Risk premium surging'},
+    'USIG': {'green': 2, 'yellow': 4, 'red_expl': 'Credit stress in investment grade'},
+    'VIX': {'green': 20, 'yellow': 30, 'red_expl': 'High market volatility'},
 }
 
 # FRED series references
@@ -77,12 +77,12 @@ def load_data():
 def color_for_value(attr, val):
     if pd.isna(val):
         return 'gray'
-    thresholds = THRESHOLDS.get(attr)
-    if not thresholds:
+    t = THRESHOLDS.get(attr)
+    if not t:
         return 'gray'
-    if val <= thresholds['green']:
+    if val <= t['green']:
         return 'green'
-    elif val <= thresholds['yellow']:
+    elif val <= t['yellow']:
         return 'yellow'
     else:
         return 'red'
@@ -157,19 +157,16 @@ def main():
     st.set_page_config(page_title="Economic Recession Indicator", layout="wide")
     st.title("📊 Economic Recession Indicator Heatmap")
 
-    # 🔹 Disclaimer
     st.markdown("""
     > **Disclaimer**  
     > This dashboard uses publicly available economic time series data from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/) database.  
     > It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
-    >  
     > Please independently verify any figures you use from this page.  
     >  
     > Given that each economic indicator is published at different intervals (daily, monthly, quarterly, etc.),  
     > this tool aggregates data by computing the **median value for each indicator per month**.
     """)
 
-    # 🔹 Color Legend
     st.markdown("""
     #### Color Legend
     - 🟩 **Green**: Healthy/expected range  
@@ -181,7 +178,7 @@ def main():
     df = load_data()
 
     all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
-    all_months = sorted(all_months, reverse=True)  # Show newest first
+    all_months = sorted(all_months, reverse=True)
     month_labels = [d.strftime("%b %Y") for d in all_months]
     month_map = dict(zip(month_labels, all_months))
 
@@ -195,22 +192,18 @@ def main():
     fig = create_heatmap(df, selected_months)
     st.plotly_chart(fig, use_container_width=True)
 
-    # 🔹 Thresholds Table (Collapsible)
     with st.expander("🎯 View Thresholds by Data Point"):
         threshold_df = pd.DataFrame([
-            {"Data Point": attr, "Green ≤": v["green"], "Yellow ≤": v["yellow"]}
+            {"Data Point": attr, "Green ≤": v["green"], "Yellow ≤": v["yellow"], "Red =": f">{v['yellow']}", "Explanation": v['red_expl']}
             for attr, v in THRESHOLDS.items()
         ])
         st.dataframe(threshold_df, use_container_width=True)
 
-    # 🔹 FRED Reference Table (Collapsible with clickable links)
     with st.expander("📎 View FRED Data Source Reference"):
-        fred_df = pd.DataFrame([
-            {"Data Point": attr, "FRED Link": f"[{link}]({link})"}
-            for attr, link in FRED_SOURCES.items()
-        ])
         st.markdown("Each metric below links directly to its FRED series page.")
-        st.write(fred_df.to_markdown(index=False), unsafe_allow_html=True)
+        st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
+            f"<tr><td>{dp}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
+            for dp, url in FRED_SOURCES.items()) + "</tbody></table>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
