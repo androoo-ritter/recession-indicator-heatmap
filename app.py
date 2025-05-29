@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -25,7 +26,7 @@ THRESHOLDS = {
     'Real GDP': {'green': 0, 'yellow': -1, 'red_expl': 'Economic contraction'},
     'Retail Sales': {'green': 0, 'yellow': -1, 'red_expl': 'Declining consumer spending'},
     'Sahm': {'green': 0.5, 'yellow': 0.8, 'red_expl': 'Likely start of a recession'},
-    'SP500': {'green': 0, 'yellow': -5, 'red_expl': 'Major market decline'},
+    'S&P500': {'green': 0, 'yellow': -5, 'red_expl': 'Major market decline'},
     'Transport Jobs': {'green': 0, 'yellow': -20000, 'red_expl': 'Demand-side weakness'},
     'Unemployment': {'green': 4, 'yellow': 6, 'red_expl': 'Labor market deterioration'},
     'USHY': {'green': 4, 'yellow': 6, 'red_expl': 'Risk premium surging'},
@@ -34,8 +35,7 @@ THRESHOLDS = {
 }
 
 FRED_SOURCES = {
-    "SP500": "https://fred.stlouisfed.org/series/SP500",
-    # ... (rest unchanged)
+    # (same source dictionary, unchanged)
 }
 
 CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQSg0j0ZpwXjDgSS1IEA4MA2-SwTbAhNgy8hqQVveM4eeWWIg6zxgMq-NpUIZBzQvssY2LsSo3kfc8x/pub?gid=995887444&single=true&output=csv"
@@ -97,7 +97,7 @@ def create_heatmap(df, selected_months):
         text=hover_text,
         hoverinfo='text',
         colorscale=[
-            [0.0, 'lightgray'],
+            [0.0, 'lightgray'],   # Grey for missing data
             [0.001, 'green'],
             [0.5, 'yellow'],
             [1.0, 'red']
@@ -152,7 +152,7 @@ def main():
         st.markdown("""
         - **🟩 Green**: Healthy/expected range  
         - **🟨 Yellow**: Caution  
-        - **🔴 Red**: Warning / likely signal  
+        - **🟥 Red**: Warning / likely signal  
         - **⬜ Grey**: No data available for that month
         """)
 
@@ -163,7 +163,7 @@ def main():
         ])
         st.dataframe(threshold_df, use_container_width=True)
 
-    with st.expander("📌 View FRED Data Source Reference", expanded=False):
+    with st.expander("📎 View FRED Data Source Reference", expanded=False):
         st.markdown("Each metric below links directly to its FRED series page.")
         st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
             f"<tr><td>{dp}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
