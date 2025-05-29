@@ -152,13 +152,13 @@ def main():
     st.set_page_config(page_title="MacroGamut Economic Recession Indicator", layout="wide")
 
     logo_path = "logo.png"
-    col1, col2 = st.columns([1, 8])
+    col1, col2 = st.columns([0.1, 0.9])
     with col1:
-        st.image(logo_path, width=60)
+        st.image(logo_path, width=50)
     with col2:
-        st.markdown("## MacroGamut Economic Recession Indicator")
+        st.markdown("### MacroGamut Economic Recession Indicator")
 
-    with st.expander("ℹ️ Disclaimer", expanded=True):
+    with st.expander("ℹ️ Disclaimer", expanded=False):
         st.markdown("""
         This dashboard uses publicly available economic time series data from the [FRED](https://fred.stlouisfed.org/) database.  
         It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
@@ -166,7 +166,7 @@ def main():
         Since economic indicators are published at varying cadences, this tool shows **monthly median values** for consistency.
         """)
 
-    with st.expander("🎯 Color Legend", expanded=True):
+    with st.expander("🎯 Color Legend", expanded=False):
         st.markdown("""
         - 🟩 **Green**: Healthy/expected range  
         - 🟨 **Yellow**: Caution  
@@ -174,14 +174,14 @@ def main():
         - ⬜ **Grey**: No data available for that month
         """)
 
-    with st.expander("📌 View Thresholds by Data Point"):
+    with st.expander("📌 View Thresholds by Data Point", expanded=False):
         threshold_df = pd.DataFrame([
             {"Data Point": attr, "Green ≤": v["green"], "Yellow ≤": v["yellow"], "Red =": f">{v['yellow']}", "Explanation": v['red_expl']}
             for attr, v in THRESHOLDS.items()
         ])
         st.dataframe(threshold_df, use_container_width=True)
 
-    with st.expander("📎 View FRED Data Source Reference"):
+    with st.expander("📎 View FRED Data Source Reference", expanded=False):
         st.markdown("Each metric below links directly to its FRED series page.")
         st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
             f"<tr><td>{dp}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
@@ -197,7 +197,7 @@ def main():
     selected_labels = st.multiselect(
         "Filter by Month-Year:",
         options=month_labels,
-        default=month_labels[:36]  # Latest 3 years
+        default=month_labels[:36]
     )
     selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
 
