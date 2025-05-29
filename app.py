@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# Thresholds for color logic
+# Thresholds
 THRESHOLDS = {
     '3-Month': {'green': 1.5, 'yellow': 3},
     '20-Year': {'green': 2, 'yellow': 4},
