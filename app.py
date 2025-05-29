@@ -156,22 +156,23 @@ def main():
     st.set_page_config(page_title="MacroGamut Economic Recession Indicator", layout="wide")
 
     st.markdown("""
-        <div style="display: flex; align-items: center; margin-bottom: -10px;">
-            <img src="https://raw.githubusercontent.com/your-username/your-repo/main/logo.png" width="40" style="margin-right: 10px;" />
-            <h1 style="margin: 0; font-size: 24px;">MacroGamut Economic Recession Indicator</h1>
+        <div style='display: flex; align-items: center; gap: 10px; margin-bottom: -20px;'>
+            <img src="https://github.com/androoo-ritter/recession-indicator-heatmap/blob/main/logo.png?raw=true" width="40" style="margin: 0;" />
+            <h1 style='margin: 0;'>MacroGamut Economic Recession Indicator</h1>
         </div>
     """, unsafe_allow_html=True)
 
-    with st.expander("📌 Disclaimer", expanded=False):
+    with st.expander("📝 Disclaimer", expanded=False):
         st.markdown("""
         This dashboard uses publicly available economic time series data from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/) database.  
         It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
         Please independently verify any figures you use from this page.  
+        
         Given that each economic indicator is published at different intervals (daily, monthly, quarterly, etc.),  
         this tool aggregates data by computing the **median value for each indicator per month**.
         """)
 
-    with st.expander("🟩 Color Legend", expanded=False):
+    with st.expander("🎨 Color Legend", expanded=False):
         st.markdown("""
         - 🟩 **Green**: Healthy/expected range  
         - 🟨 **Yellow**: Caution  
@@ -202,7 +203,7 @@ def main():
     selected_labels = st.multiselect(
         "Filter by Month-Year:",
         options=month_labels,
-        default=month_labels[:36]
+        default=month_labels[:36]  # Latest 3 years
     )
     selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
 
