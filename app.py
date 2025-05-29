@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# Thresholds for each attribute
+# Thresholds per attribute
 THRESHOLDS = {
     '3-Month': {'green': 1.5, 'yellow': 3},
     '20-Year': {'green': 2, 'yellow': 4},
@@ -58,7 +58,6 @@ def color_for_value(attr, val):
         return 'red'
 
 def create_heatmap(df, selected_months):
-    # Ensure full grid of attributes × all months
     attributes = df['Attribute'].unique()
     all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
     full_index = pd.MultiIndex.from_product([attributes, all_months], names=['Attribute', 'MonthYear'])
@@ -119,7 +118,7 @@ def create_heatmap(df, selected_months):
         annotations=annotations,
         margin=dict(l=150, r=20, t=120, b=40),
         template='plotly_white',
-        height=min(1600, 40 * len(pivot_df))  # dynamically adjusts height
+        height=min(1600, 40 * len(pivot_df))  # dynamic height
     )
 
     return fig
@@ -128,7 +127,19 @@ def main():
     st.set_page_config(page_title="Economic Recession Indicator", layout="wide")
     st.title("📊 Economic Recession Indicator Heatmap")
 
-    # Add legend
+    # 🔹 Disclaimer
+    st.markdown("""
+    > **Disclaimer**  
+    > This dashboard uses publicly available economic time series data from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/) database.  
+    > It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
+    >  
+    > Please independently verify any figures you use from this page.  
+    >  
+    > Given that each economic indicator is published at different intervals (daily, monthly, quarterly, etc.),  
+    > this tool aggregates data by computing the **median value for each indicator per month**.
+    """)
+
+    # 🔹 Color Legend
     st.markdown("""
     #### Color Legend
     - 🟩 **Green**: Healthy/expected range  
@@ -138,14 +149,16 @@ def main():
     """)
 
     df = load_data()
+
     all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
+    all_months = sorted(all_months, reverse=True)  # Show newest first
     month_labels = [d.strftime("%b %Y") for d in all_months]
     month_map = dict(zip(month_labels, all_months))
 
     selected_labels = st.multiselect(
         "Filter by Month-Year:",
         options=month_labels,
-        default=month_labels[:36]  # Default to last 3 years
+        default=month_labels[:36]  # Latest 3 years
     )
     selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
 
