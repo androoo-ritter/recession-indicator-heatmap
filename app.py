@@ -74,7 +74,7 @@ def load_data():
     return df
 
 def color_for_value(attr, val):
-    if attr not in THRESHOLDS or pd.isna(val):
+    if attr not in THRESHOLDS or pd.isnull(val):
         return "lightgrey"
     t = THRESHOLDS[attr]
     if val <= t["green"]:
@@ -97,7 +97,7 @@ def create_heatmap(df):
         y=pivot_df.index.strftime("%b %Y"),
         text=z_text,
         hovertext=[
-            [f"{col}<br>{idx.strftime('%b %Y')}<br>{pivot_df.loc[idx, col]:.2f}" if not pd.isna(pivot_df.loc[idx, col]) else "No Data"
+            [f"{col}<br>{idx.strftime('%b %Y')}<br>{pivot_df.loc[idx, col]:.2f}" if not pd.isnull(pivot_df.loc[idx, col]) else "No Data"
              for col in pivot_df.columns] for idx in pivot_df.index
         ],
         hoverinfo="text",
