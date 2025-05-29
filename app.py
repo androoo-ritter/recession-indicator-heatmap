@@ -89,7 +89,7 @@ def create_heatmap(df):
     pivot_df = median_df.pivot(index="MonthYear", columns="Attribute", values="Value").sort_index(ascending=False)
 
     z_text = pivot_df.round(2).astype(str)
-    colors = [[color_for_value(col, val) for col in pivot_df.columns] for val in pivot_df.values]
+    colors = [[color_for_value(col, pivot_df.loc[row_idx, col]) for col in pivot_df.columns] for row_idx in pivot_df.index]
 
     fig = go.Figure(data=go.Heatmap(
         z=[[1]*len(pivot_df.columns)]*len(pivot_df.index),
