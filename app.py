@@ -214,7 +214,7 @@ def main():
         Please independently verify any figures you use from this page.  
 
         Given that each economic indicator is published at different intervals (daily, monthly, quarterly, etc.),  
-        this tool aggregates data by computing the **median value for each indicator per month**.
+        this tool aggregates data by computing the **median value for each indicator for each respective month**.
         """)
 
     with st.expander("🟩 Color Legend", expanded=False):
