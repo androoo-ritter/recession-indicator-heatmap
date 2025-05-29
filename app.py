@@ -34,7 +34,32 @@ THRESHOLDS = {
 }
 
 FRED_SOURCES = {
-    # Your unchanged FRED_SOURCES dictionary here
+    "3-Month": "https://fred.stlouisfed.org/series/DGS3MO",
+    "20-Year": "https://fred.stlouisfed.org/series/DGS20",
+    "30-Year": "https://fred.stlouisfed.org/series/DGS30",
+    "Bank Credit": "https://fred.stlouisfed.org/series/TOTBKCR",
+    "Claims": "https://fred.stlouisfed.org/series/ICSA",
+    "Consumer Sentiment": "https://fred.stlouisfed.org/series/UMCSENT",
+    "Continued Claims": "https://fred.stlouisfed.org/series/CCSA",
+    "Core CPI": "https://fred.stlouisfed.org/series/CPILFESL",
+    "CPI": "https://fred.stlouisfed.org/series/CPIAUCSL",
+    "Credit Card Delinquency": "https://fred.stlouisfed.org/series/DRCCLACBS",
+    "Employment": "https://fred.stlouisfed.org/series/CE16OV",
+    "Loans and Leases": "https://fred.stlouisfed.org/series/TOTLL",
+    "M1": "https://fred.stlouisfed.org/series/M1SL",
+    "M2": "https://fred.stlouisfed.org/series/M2SL",
+    "Mortgage Delinquency": "https://fred.stlouisfed.org/series/DRSFRMACBS",
+    "Payrolls": "https://fred.stlouisfed.org/series/PAYEMS",
+    "Real FFR": "https://fred.stlouisfed.org/series/FEDFUNDS",
+    "Real GDP": "https://fred.stlouisfed.org/series/A191RL1Q225SBEA",
+    "Retail Sales": "https://fred.stlouisfed.org/series/RSXFS",
+    "Sahm": "https://fred.stlouisfed.org/series/SAHMREALTIME",
+    "SP500": "https://fred.stlouisfed.org/series/SP500",
+    "Transport Jobs": "https://fred.stlouisfed.org/series/CES4348400001",
+    "Unemployment": "https://fred.stlouisfed.org/series/UNRATE",
+    "USHY": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2",
+    "USIG": "https://fred.stlouisfed.org/series/BAMLC0A0CM",
+    "VIX": "https://fred.stlouisfed.org/series/VIXCLS",
 }
 
 CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQSg0j0ZpwXjDgSS1IEA4MA2-SwTbAhNgy8hqQVveM4eeWWIg6zxgMq-NpUIZBzQvssY2LsSo3kfc8x/pub?gid=995887444&single=true&output=csv"
