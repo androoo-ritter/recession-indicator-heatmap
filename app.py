@@ -33,6 +33,7 @@ THRESHOLDS = {
     'VIX': {'green': 20, 'yellow': 30, 'red_expl': 'High market volatility'},
 }
 
+# FRED series references
 FRED_SOURCES = {
     "3-Month": "https://fred.stlouisfed.org/series/DGS3MO",
     "20-Year": "https://fred.stlouisfed.org/series/DGS20",
@@ -73,29 +74,136 @@ def load_data():
     df['MonthYear'] = df['Date'].dt.to_period('M').dt.to_timestamp()
     return df
 
+def color_for_value(attr, val):
+    if pd.isna(val):
+        return 'gray'
+    t = THRESHOLDS.get(attr)
+    if not t:
+        return 'gray'
+    if val <= t['green']:
+        return 'green'
+    elif val <= t['yellow']:
+        return 'yellow'
+    else:
+        return 'red'
+
+def create_heatmap(df, selected_months):
+    attributes = df['Attribute'].unique()
+    all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
+    full_index = pd.MultiIndex.from_product([attributes, all_months], names=['Attribute', 'MonthYear'])
+
+    median_df = df.groupby(['Attribute', 'MonthYear'])['Value'].median().round(2)
+    full_df = median_df.reindex(full_index).reset_index()
+    full_df = full_df[full_df['MonthYear'].isin(selected_months)]
+
+    pivot_df = full_df.pivot(index='MonthYear', columns='Attribute', values='Value').sort_index(ascending=False)
+
+    colors = []
+    for dt in pivot_df.index:
+        colors.append([color_for_value(attr, pivot_df.at[dt, attr]) for attr in pivot_df.columns])
+
+    hover_text = []
+    for dt in pivot_df.index:
+        row = []
+        dt_str = dt.strftime("%b %Y")
+        for attr in pivot_df.columns:
+            val = pivot_df.at[dt, attr]
+            val_str = f"{val:.2f}" if pd.notnull(val) else "N/A"
+            row.append(f"<b>{attr}</b><br>{dt_str}<br>Median: {val_str}")
+        hover_text.append(row)
+
+    color_map = {'green': 0, 'yellow': 0.5, 'red': 1, 'gray': 0.25}
+    z_colors = np.array([[color_map.get(c, 0.25) for c in row] for row in colors])
+
+    fig = go.Figure(data=go.Heatmap(
+        z=z_colors,
+        x=pivot_df.columns,
+        y=[d.strftime("%b %Y") for d in pivot_df.index],
+        text=hover_text,
+        hoverinfo='text',
+        colorscale=[[0, 'green'], [0.5, 'yellow'], [1, 'red']],
+        showscale=False,
+        xgap=2,
+        ygap=2
+    ))
+
+    annotations = []
+    for y_idx, dt in enumerate(pivot_df.index):
+        for x_idx, attr in enumerate(pivot_df.columns):
+            val = pivot_df.at[dt, attr]
+            if pd.notnull(val):
+                annotations.append(dict(
+                    x=attr,
+                    y=dt.strftime("%b %Y"),
+                    text=f"{val:.2f}",
+                    showarrow=False,
+                    font=dict(color="black", size=10),
+                    xanchor="center",
+                    yanchor="middle"
+                ))
+
+    fig.update_layout(
+        xaxis=dict(side='top'),
+        yaxis=dict(autorange='reversed'),
+        annotations=annotations,
+        margin=dict(l=150, r=20, t=120, b=40),
+        template='plotly_white',
+        height=min(1600, 40 * len(pivot_df))  # dynamic height
+    )
+
+    return fig
+
 def main():
     st.set_page_config(page_title="Economic Recession Indicator", layout="wide")
     st.title("📊 Economic Recession Indicator Heatmap")
 
-    with st.expander("ℹ️ Disclaimer"):
-        st.markdown("""
-        This dashboard uses publicly available economic time series data from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/) database.  
-        It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
-        Please independently verify any figures you use from this page.  
-        
-        Given that each economic indicator is published at different intervals (daily, monthly, quarterly, etc.),  
-        this tool aggregates data by computing the **median value for each indicator per month**.
-        """)
+    st.markdown("""
+    > **Disclaimer**  
+    > This dashboard uses publicly available economic time series data from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/) database.  
+    > It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
+    > Please independently verify any figures you use from this page.  
+    >  
+    > Given that each economic indicator is published at different intervals (daily, monthly, quarterly, etc.),  
+    > this tool aggregates data by computing the **median value for each indicator per month**.
+    """)
 
-    with st.expander("🧭 Color Legend"):
-        st.markdown("""
-        - 🟩 **Green**: Healthy/expected range  
-        - 🟨 **Yellow**: Caution  
-        - 🟥 **Red**: Warning / likely signal  
-        - ⬜ **Grey**: No data available for that month
-        """)
+    st.markdown("""
+    #### Color Legend
+    - 🟩 **Green**: Healthy/expected range  
+    - 🟨 **Yellow**: Caution  
+    - 🟥 **Red**: Warning / likely signal  
+    - ⬜ **Grey**: No data available for that month
+    """)
 
-    # (The rest of your logic — heatmap, threshold table, FRED links — goes below unchanged)
+    df = load_data()
+
+    all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
+    all_months = sorted(all_months, reverse=True)
+    month_labels = [d.strftime("%b %Y") for d in all_months]
+    month_map = dict(zip(month_labels, all_months))
+
+    selected_labels = st.multiselect(
+        "Filter by Month-Year:",
+        options=month_labels,
+        default=month_labels[:36]  # Latest 3 years
+    )
+    selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
+
+    fig = create_heatmap(df, selected_months)
+    st.plotly_chart(fig, use_container_width=True)
+
+    with st.expander("🎯 View Thresholds by Data Point"):
+        threshold_df = pd.DataFrame([
+            {"Data Point": attr, "Green ≤": v["green"], "Yellow ≤": v["yellow"], "Red =": f">{v['yellow']}", "Explanation": v['red_expl']}
+            for attr, v in THRESHOLDS.items()
+        ])
+        st.dataframe(threshold_df, use_container_width=True)
+
+    with st.expander("📎 View FRED Data Source Reference"):
+        st.markdown("Each metric below links directly to its FRED series page.")
+        st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
+            f"<tr><td>{dp}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
+            for dp, url in FRED_SOURCES.items()) + "</tbody></table>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
