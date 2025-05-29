@@ -33,7 +33,6 @@ THRESHOLDS = {
     'VIX': {'green': 20, 'yellow': 30, 'red_expl': 'High market volatility'},
 }
 
-# FRED series references
 FRED_SOURCES = {
     "3-Month": "https://fred.stlouisfed.org/series/DGS3MO",
     "20-Year": "https://fred.stlouisfed.org/series/DGS20",
@@ -157,23 +156,22 @@ def main():
     st.set_page_config(page_title="Economic Recession Indicator", layout="wide")
     st.title("📊 Economic Recession Indicator Heatmap")
 
-    st.markdown("""
-    > **Disclaimer**  
-    > This dashboard uses publicly available economic time series data from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/) database.  
-    > It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
-    > Please independently verify any figures you use from this page.  
-    >  
-    > Given that each economic indicator is published at different intervals (daily, monthly, quarterly, etc.),  
-    > this tool aggregates data by computing the **median value for each indicator per month**.
-    """)
+    with st.expander("ℹ️ Disclaimer"):
+        st.markdown("""
+        This dashboard uses publicly available economic time series data from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/) database.  
+        It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
+        Please independently verify any figures you use from this page.  
+        Given that each economic indicator is published at different intervals (daily, monthly, quarterly, etc.),  
+        this tool aggregates data by computing the **median value for each indicator per month**.
+        """)
 
-    st.markdown("""
-    #### Color Legend
-    - 🟩 **Green**: Healthy/expected range  
-    - 🟨 **Yellow**: Caution  
-    - 🟥 **Red**: Warning / likely signal  
-    - ⬜ **Grey**: No data available for that month
-    """)
+    with st.expander("🧭 Color Legend"):
+        st.markdown("""
+        - 🟩 **Green**: Healthy/expected range  
+        - 🟨 **Yellow**: Caution  
+        - 🟥 **Red**: Warning / likely signal  
+        - ⬜ **Grey**: No data available for that month
+        """)
 
     df = load_data()
 
