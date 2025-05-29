@@ -10,22 +10,6 @@ THRESHOLDS = {
     # Add all attribute thresholds as needed
 }
 
-def get_color(value, attr):
-    thresh = THRESHOLDS.get(attr, {})
-    red = thresh.get("red", None)
-    yellow = thresh.get("yellow", None)
-
-    if red is None or yellow is None:
-        return "lightgray"  # Default color
-
-    if value >= red:
-        return "red"
-    elif value >= yellow:
-        return "yellow"
-    else:
-        return "green"
-
-
 @st.cache_data(ttl=3600)
 def load_data():
     df = pd.read_csv(CSV_URL)
@@ -54,14 +38,18 @@ def create_heatmap(df):
 
     pivot_df = median_df.pivot(index="MonthYear", columns="Attribute", values="Value")
 
-    hover_text = pivot_df.applymap(lambda v: f"{v:.2f}" if pd.notnull(v) else "No data")
+    # Prepare tooltip text with MonthYear, Attribute, Median Value
+    hover_text = median_df.apply(
+        lambda row: f"{row['MonthYear'].strftime('%b %Y')}<br>{row['Attribute']}<br>Median Value: {row['Value']:.2f}",
+        axis=1,
+    ).values.reshape(pivot_df.shape)
 
     fig = go.Figure(
         data=go.Heatmap(
             z=pivot_df.values,
             x=pivot_df.columns,
-            y=[d.strftime("%Y-%m") for d in pivot_df.index],
-            text=hover_text.values,
+            y=[d.strftime("%b %Y") for d in pivot_df.index],
+            text=hover_text,
             hoverinfo="text",
             colorscale=[[0, "green"], [0.5, "yellow"], [1, "red"]],
             showscale=True,
@@ -76,6 +64,7 @@ def create_heatmap(df):
         yaxis_title="Month-Year",
         template="plotly_dark",
         height=600,
+        xaxis=dict(side="top"),  # Put x axis on top
     )
 
     return fig
@@ -86,8 +75,7 @@ def main():
 
     df = load_data()
 
-    st.write("Data preview:")
-    st.write(df.head(10))
+    # Removed st.write(df.head(10)) so no preview table
 
     if df.empty:
         st.error("No data available to display.")
