@@ -135,6 +135,10 @@ def create_heatmap(df, selected_months):
 def main():
     st.set_page_config(page_title="MacroGamut Economic Recession Indicator", layout="wide")
 
+    # 🔄 Refresh button to force reload from Google Sheets
+    if st.button("🔄 Refresh Data from Source"):
+        st.cache_data.clear()
+
     st.markdown("""
         <div style='display: flex; align-items: center; gap: 15px; margin-bottom: -10px;'>
             <img src='https://raw.githubusercontent.com/androoo-ritter/recession-indicator-heatmap/main/logo.png' width='60'/>
