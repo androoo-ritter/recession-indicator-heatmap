@@ -3,34 +3,64 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# Thresholds
+# Thresholds per attribute with red zone explanation
 THRESHOLDS = {
-    '3-Month': {'green': 1.5, 'yellow': 3},
-    '20-Year': {'green': 2, 'yellow': 4},
-    '30-Year': {'green': 2, 'yellow': 4},
-    'Bank Credit': {'green': 0, 'yellow': -2},
-    'Claims': {'green': 200000, 'yellow': 300000},
-    'Consumer Sentiment': {'green': 70, 'yellow': 50},
-    'Continued Claims': {'green': 1500000, 'yellow': 2500000},
-    'Core CPI': {'green': 2, 'yellow': 4},
-    'CPI': {'green': 2, 'yellow': 4},
-    'Credit Card Delinquency': {'green': 2, 'yellow': 4},
-    'Employment': {'green': 100000, 'yellow': 0},
-    'Loans and Leases': {'green': 0, 'yellow': -2},
-    'M1': {'green': 0, 'yellow': -2},
-    'M2': {'green': 0, 'yellow': -2},
-    'Mortgage Delinquency': {'green': 2, 'yellow': 4},
-    'Payrolls': {'green': 0, 'yellow': -100000},
-    'Real FFR': {'green': 0, 'yellow': 1},
-    'Real GDP': {'green': 0, 'yellow': -1},
-    'Retail Sales': {'green': 0, 'yellow': -1},
-    'Sahm': {'green': 0.5, 'yellow': 0.8},
-    'S&P500': {'green': 0, 'yellow': -5},
-    'Transport Jobs': {'green': 0, 'yellow': -20000},
-    'Unemployment': {'green': 4, 'yellow': 6},
-    'USHY': {'green': 4, 'yellow': 6},
-    'USIG': {'green': 2, 'yellow': 4},
-    'VIX': {'green': 20, 'yellow': 30},
+    '3-Month': {'green': 1.5, 'yellow': 3, 'red_expl': 'Excessively high short-term interest rates'},
+    '20-Year': {'green': 2, 'yellow': 4, 'red_expl': 'Long-term rates may signal inflation or instability'},
+    '30-Year': {'green': 2, 'yellow': 4, 'red_expl': 'Long-term borrowing costs high'},
+    'Bank Credit': {'green': 0, 'yellow': -2, 'red_expl': 'Contraction in lending activity'},
+    'Claims': {'green': 200000, 'yellow': 300000, 'red_expl': 'Spike in unemployment claims'},
+    'Consumer Sentiment': {'green': 70, 'yellow': 50, 'red_expl': 'Low consumer confidence'},
+    'Continued Claims': {'green': 1500000, 'yellow': 2500000, 'red_expl': 'Extended unemployment'},
+    'Core CPI': {'green': 2, 'yellow': 4, 'red_expl': 'Elevated core inflation'},
+    'CPI': {'green': 2, 'yellow': 4, 'red_expl': 'Elevated inflation'},
+    'Credit Card Delinquency': {'green': 2, 'yellow': 4, 'red_expl': 'Consumers struggling with debt'},
+    'Employment': {'green': 100000, 'yellow': 0, 'red_expl': 'Net job losses'},
+    'Loans and Leases': {'green': 0, 'yellow': -2, 'red_expl': 'Decrease in bank lending'},
+    'M1': {'green': 0, 'yellow': -2, 'red_expl': 'Shrinking money supply'},
+    'M2': {'green': 0, 'yellow': -2, 'red_expl': 'Shrinking broader money supply'},
+    'Mortgage Delinquency': {'green': 2, 'yellow': 4, 'red_expl': 'Housing distress'},
+    'Payrolls': {'green': 0, 'yellow': -100000, 'red_expl': 'Significant job loss'},
+    'Real FFR': {'green': 0, 'yellow': 1, 'red_expl': 'Restrictive monetary policy'},
+    'Real GDP': {'green': 0, 'yellow': -1, 'red_expl': 'Economic contraction'},
+    'Retail Sales': {'green': 0, 'yellow': -1, 'red_expl': 'Declining consumer spending'},
+    'Sahm': {'green': 0.5, 'yellow': 0.8, 'red_expl': 'Likely start of a recession'},
+    'S&P500': {'green': 0, 'yellow': -5, 'red_expl': 'Major market decline'},
+    'Transport Jobs': {'green': 0, 'yellow': -20000, 'red_expl': 'Demand-side weakness'},
+    'Unemployment': {'green': 4, 'yellow': 6, 'red_expl': 'Labor market deterioration'},
+    'USHY': {'green': 4, 'yellow': 6, 'red_expl': 'Risk premium surging'},
+    'USIG': {'green': 2, 'yellow': 4, 'red_expl': 'Credit stress in investment grade'},
+    'VIX': {'green': 20, 'yellow': 30, 'red_expl': 'High market volatility'},
+}
+
+# FRED series references
+FRED_SOURCES = {
+    "3-Month": "https://fred.stlouisfed.org/series/DGS3MO",
+    "20-Year": "https://fred.stlouisfed.org/series/DGS20",
+    "30-Year": "https://fred.stlouisfed.org/series/DGS30",
+    "Bank Credit": "https://fred.stlouisfed.org/series/TOTBKCR",
+    "Claims": "https://fred.stlouisfed.org/series/ICSA",
+    "Consumer Sentiment": "https://fred.stlouisfed.org/series/UMCSENT",
+    "Continued Claims": "https://fred.stlouisfed.org/series/CCSA",
+    "Core CPI": "https://fred.stlouisfed.org/series/CPILFESL",
+    "CPI": "https://fred.stlouisfed.org/series/CPIAUCSL",
+    "Credit Card Delinquency": "https://fred.stlouisfed.org/series/DRCCLACBS",
+    "Employment": "https://fred.stlouisfed.org/series/UNRATE",
+    "Loans and Leases": "https://fred.stlouisfed.org/series/TOTLL",
+    "M1": "https://fred.stlouisfed.org/series/M1SL",
+    "M2": "https://fred.stlouisfed.org/series/M2SL",
+    "Mortgage Delinquency": "https://fred.stlouisfed.org/series/DRSFRMACBS",
+    "Payrolls": "https://fred.stlouisfed.org/series/PAYEMS",
+    "Real FFR": "https://fred.stlouisfed.org/series/FEDFUNDS",
+    "Real GDP": "https://fred.stlouisfed.org/series/A191RL1Q225SBEA",
+    "Retail Sales": "https://fred.stlouisfed.org/series/RSXFS",
+    "Sahm": "https://fred.stlouisfed.org/series/SAHMREALTIME",
+    "S&P500": "https://fred.stlouisfed.org/series/SP500",
+    "Transport Jobs": "https://fred.stlouisfed.org/series/CES4348400001",
+    "Unemployment": "https://fred.stlouisfed.org/series/UNRATE",
+    "USHY": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2",
+    "USIG": "https://fred.stlouisfed.org/series/BAMLC0A0CM",
+    "VIX": "https://fred.stlouisfed.org/series/VIXCLS",
 }
 
 CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQSg0j0ZpwXjDgSS1IEA4MA2-SwTbAhNgy8hqQVveM4eeWWIg6zxgMq-NpUIZBzQvssY2LsSo3kfc8x/pub?gid=995887444&single=true&output=csv"
@@ -45,62 +75,135 @@ def load_data():
     return df
 
 def color_for_value(attr, val):
-    if attr not in THRESHOLDS or pd.isnull(val):
-        return "lightgrey"
-    t = THRESHOLDS[attr]
-    if val <= t["green"]:
-        return "green"
-    elif val <= t["yellow"]:
-        return "yellow"
+    if pd.isna(val):
+        return 'gray'
+    t = THRESHOLDS.get(attr)
+    if not t:
+        return 'gray'
+    if val <= t['green']:
+        return 'green'
+    elif val <= t['yellow']:
+        return 'yellow'
     else:
-        return "red"
+        return 'red'
 
-def create_heatmap(df):
-    median_df = df.groupby(["MonthYear", "Attribute"])["Value"].median().reset_index()
-    pivot_df = median_df.pivot(index="MonthYear", columns="Attribute", values="Value").sort_index(ascending=False)
+def create_heatmap(df, selected_months):
+    attributes = df['Attribute'].unique()
+    all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
+    full_index = pd.MultiIndex.from_product([attributes, all_months], names=['Attribute', 'MonthYear'])
 
-    z_text = pivot_df.round(2).astype(str)
-    colors = [[color_for_value(col, pivot_df.loc[row_idx, col]) for col in pivot_df.columns] for row_idx in pivot_df.index]
+    median_df = df.groupby(['Attribute', 'MonthYear'])['Value'].median().round(2)
+    full_df = median_df.reindex(full_index).reset_index()
+    full_df = full_df[full_df['MonthYear'].isin(selected_months)]
+
+    pivot_df = full_df.pivot(index='MonthYear', columns='Attribute', values='Value').sort_index(ascending=False)
+
+    colors = []
+    for dt in pivot_df.index:
+        colors.append([color_for_value(attr, pivot_df.at[dt, attr]) for attr in pivot_df.columns])
+
+    hover_text = []
+    for dt in pivot_df.index:
+        row = []
+        dt_str = dt.strftime("%b %Y")
+        for attr in pivot_df.columns:
+            val = pivot_df.at[dt, attr]
+            val_str = f"{val:.2f}" if pd.notnull(val) else "N/A"
+            row.append(f"<b>{attr}</b><br>{dt_str}<br>Median: {val_str}")
+        hover_text.append(row)
+
+    color_map = {'green': 0, 'yellow': 0.5, 'red': 1, 'gray': 0.25}
+    z_colors = np.array([[color_map.get(c, 0.25) for c in row] for row in colors])
 
     fig = go.Figure(data=go.Heatmap(
-        z=[[1]*len(pivot_df.columns)]*len(pivot_df.index),
+        z=z_colors,
         x=pivot_df.columns,
-        y=pivot_df.index.strftime("%b %Y"),
-        text=z_text,
-        hovertext=[
-            [f"{col}<br>{idx.strftime('%b %Y')}<br>{pivot_df.loc[idx, col]:.2f}" if not pd.isnull(pivot_df.loc[idx, col]) else "No Data"
-             for col in pivot_df.columns] for idx in pivot_df.index
-        ],
-        hoverinfo="text",
+        y=[d.strftime("%b %Y") for d in pivot_df.index],
+        text=hover_text,
+        hoverinfo='text',
+        colorscale=[[0, 'green'], [0.5, 'yellow'], [1, 'red']],
         showscale=False,
-        texttemplate="%{text}",
-        textfont={"size":12},
         xgap=2,
-        ygap=2,
-        colorscale=[[0, "white"], [1, "white"]],
-        zmin=0,
-        zmax=1,
+        ygap=2
     ))
 
-    for i, row in enumerate(colors):
-        for j, c in enumerate(row):
-            fig.add_shape(
-                type="rect",
-                x0=j-0.5, y0=i-0.5,
-                x1=j+0.5, y1=i+0.5,
-                fillcolor=c, line=dict(width=0)
-            )
+    annotations = []
+    for y_idx, dt in enumerate(pivot_df.index):
+        for x_idx, attr in enumerate(pivot_df.columns):
+            val = pivot_df.at[dt, attr]
+            if pd.notnull(val):
+                annotations.append(dict(
+                    x=attr,
+                    y=dt.strftime("%b %Y"),
+                    text=f"{val:.2f}",
+                    showarrow=False,
+                    font=dict(color="black", size=10),
+                    xanchor="center",
+                    yanchor="middle"
+                ))
 
-    fig.update_layout(height=900, margin=dict(t=30, b=30))
+    fig.update_layout(
+        xaxis=dict(side='top'),
+        yaxis=dict(autorange='reversed'),
+        annotations=annotations,
+        margin=dict(l=150, r=20, t=120, b=40),
+        template='plotly_white',
+        height=min(1600, 40 * len(pivot_df))  # dynamic height
+    )
+
     return fig
 
 def main():
     st.set_page_config(page_title="Economic Recession Indicator", layout="wide")
     st.title("📊 Economic Recession Indicator Heatmap")
 
+    st.markdown("""
+    > **Disclaimer**  
+    > This dashboard uses publicly available economic time series data from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/) database.  
+    > It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
+    > Please independently verify any figures you use from this page.  
+    >  
+    > Given that each economic indicator is published at different intervals (daily, monthly, quarterly, etc.),  
+    > this tool aggregates data by computing the **median value for each indicator per month**.
+    """)
+
+    st.markdown("""
+    #### Color Legend
+    - 🟩 **Green**: Healthy/expected range  
+    - 🟨 **Yellow**: Caution  
+    - 🟥 **Red**: Warning / likely signal  
+    - ⬜ **Grey**: No data available for that month
+    """)
+
     df = load_data()
-    fig = create_heatmap(df)
+
+    all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
+    all_months = sorted(all_months, reverse=True)
+    month_labels = [d.strftime("%b %Y") for d in all_months]
+    month_map = dict(zip(month_labels, all_months))
+
+    selected_labels = st.multiselect(
+        "Filter by Month-Year:",
+        options=month_labels,
+        default=month_labels[:36]  # Latest 3 years
+    )
+    selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
+
+    fig = create_heatmap(df, selected_months)
     st.plotly_chart(fig, use_container_width=True)
+
+    with st.expander("🎯 View Thresholds by Data Point"):
+        threshold_df = pd.DataFrame([
+            {"Data Point": attr, "Green ≤": v["green"], "Yellow ≤": v["yellow"], "Red =": f">{v['yellow']}", "Explanation": v['red_expl']}
+            for attr, v in THRESHOLDS.items()
+        ])
+        st.dataframe(threshold_df, use_container_width=True)
+
+    with st.expander("📎 View FRED Data Source Reference"):
+        st.markdown("Each metric below links directly to its FRED series page.")
+        st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
+            f"<tr><td>{dp}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
+            for dp, url in FRED_SOURCES.items()) + "</tbody></table>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
