@@ -92,6 +92,18 @@ FRED_SOURCES = {
     "VIX": "https://fred.stlouisfed.org/series/VIXCLS",
 }
 
+def format_value(val):
+    if pd.isna(val):
+        return "N/A"
+    if abs(val) >= 1_000_000_000:
+        return f"{val:,.0f}B"
+    elif abs(val) >= 1_000_000:
+        return f"{val:,.0f}M"
+    elif abs(val) >= 1_000:
+        return f"{val:,.0f}"
+    else:
+        return f"{val:.2f}"
+
 CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQSg0j0ZpwXjDgSS1IEA4MA2-SwTbAhNgy8hqQVveM4eeWWIg6zxgMq-NpUIZBzQvssY2LsSo3kfc8x/pub?gid=995887444&single=true&output=csv"
 
 @st.cache_data
@@ -137,7 +149,7 @@ def create_heatmap(df, selected_months):
         dt_str = dt.strftime("%b %Y")
         for attr in pivot_df.columns:
             val = pivot_df.at[dt, attr]
-            val_str = f"{val:.2f}" if pd.notnull(val) else "N/A"
+            val_str = format_value(val)
             row.append(f"<b>{attr}</b><br>{dt_str}<br>Median: {val_str}")
         hover_text.append(row)
 
@@ -169,7 +181,7 @@ def create_heatmap(df, selected_months):
                 annotations.append(dict(
                     x=ATTRIBUTE_LABELS.get(attr, attr),
                     y=dt.strftime("%b %Y"),
-                    text=f"{val:.2f}",
+                    text=format_value(val),
                     showarrow=False,
                     font=dict(color="black", size=10),
                     xanchor="center",
