@@ -73,19 +73,6 @@ def load_data():
     df['MonthYear'] = df['Date'].dt.to_period('M').dt.to_timestamp()
     return df
 
-def color_for_value(attr, val):
-    if pd.isna(val):
-        return 'gray'
-    t = THRESHOLDS.get(attr)
-    if not t:
-        return 'gray'
-    if val <= t['green']:
-        return 'green'
-    elif val <= t['yellow']:
-        return 'yellow'
-    else:
-        return 'red'
-
 def create_heatmap(df, selected_months):
     attributes = df['Attribute'].unique()
     all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
@@ -97,33 +84,27 @@ def create_heatmap(df, selected_months):
 
     pivot_df = full_df.pivot(index='MonthYear', columns='Attribute', values='Value').sort_index(ascending=False)
 
-    colors = []
-    for dt in pivot_df.index:
-        colors.append([color_for_value(attr, pivot_df.at[dt, attr]) for attr in pivot_df.columns])
-
     hover_text = []
+    z_colors = []
     for dt in pivot_df.index:
-        row = []
-        dt_str = dt.strftime("%b %Y")
+        row_colors = []
+        row_texts = []
         for attr in pivot_df.columns:
             val = pivot_df.at[dt, attr]
-            val_str = f"{val:.2f}" if pd.notnull(val) else "N/A"
-            row.append(f"<b>{attr}</b><br>{dt_str}<br>Median: {val_str}")
-        hover_text.append(row)
-
-    color_map = {'green': 0, 'yellow': 0.5, 'red': 1, 'gray': 2}
-    z_colors = np.array([[color_map.get(c, 2) for c in row] for row in colors])
-
-    colorscale = [
-        [0.0, 'green'],
-        [0.4999, 'green'],
-        [0.5, 'yellow'],
-        [0.9999, 'yellow'],
-        [1.0, 'red'],
-        [1.9999, 'red'],
-        [2.0, 'lightgray'],
-        [2.0, 'lightgray'],
-    ]
+            if pd.isna(val):
+                row_colors.append(np.nan)
+                row_texts.append(f"<b>{attr}</b><br>{dt.strftime('%b %Y')}<br>Median: N/A")
+            else:
+                t = THRESHOLDS.get(attr)
+                if val <= t["green"]:
+                    row_colors.append(0)
+                elif val <= t["yellow"]:
+                    row_colors.append(0.5)
+                else:
+                    row_colors.append(1)
+                row_texts.append(f"<b>{attr}</b><br>{dt.strftime('%b %Y')}<br>Median: {val:.2f}")
+        z_colors.append(row_colors)
+        hover_text.append(row_texts)
 
     fig = go.Figure(data=go.Heatmap(
         z=z_colors,
@@ -131,7 +112,9 @@ def create_heatmap(df, selected_months):
         y=[d.strftime("%b %Y") for d in pivot_df.index],
         text=hover_text,
         hoverinfo='text',
-        colorscale=colorscale,
+        zmin=0,
+        zmax=1,
+        colorscale=[[0, 'green'], [0.5, 'yellow'], [1, 'red']],
         showscale=False,
         xgap=2,
         ygap=2
