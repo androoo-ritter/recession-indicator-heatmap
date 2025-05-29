@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# --- Thresholds ---
 THRESHOLDS = {
     '3-Month': {'green': 1.5, 'yellow': 3, 'red_expl': 'Excessively high short-term interest rates'},
     '20-Year': {'green': 2, 'yellow': 4, 'red_expl': 'Long-term rates may signal inflation or instability'},
@@ -129,10 +128,13 @@ def main():
 
     with st.expander("ℹ️ Disclaimer"):
         st.markdown("""
-        This dashboard uses publicly available economic time series data from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/) database.  
-        It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
-        Please independently verify any figures you use from this page.  
-        Data is aggregated by computing the **median value for each indicator per month**.
+        > **Disclaimer**  
+        > This dashboard uses publicly available economic time series data from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/) database.  
+        > It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
+        > Please independently verify any figures you use from this page.  
+        >  
+        > Given that each economic indicator is published at different intervals (daily, monthly, quarterly, etc.),  
+        > this tool aggregates data by computing the **median value for each indicator per month**.
         """)
 
     with st.expander("🎨 Color Legend"):
@@ -159,7 +161,6 @@ def main():
         st.dataframe(threshold_df, use_container_width=True)
 
     with st.expander("📎 View FRED Data Source Reference"):
-        st.markdown("Each metric below links directly to its FRED series page.")
         st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
             f"<tr><td>{dp}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
             for dp, url in FRED_SOURCES.items()) + "</tbody></table>", unsafe_allow_html=True)
