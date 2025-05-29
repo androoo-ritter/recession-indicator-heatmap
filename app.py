@@ -153,8 +153,8 @@ def create_heatmap(df, selected_months):
     return fig
 
 def main():
-    st.set_page_config(page_title="MacroGamut Economic Recession Indicator", layout="wide")
-    st.title("📊 MacroGamut Economic Recession Indicator Heatmap")
+    st.set_page_config(page_title="Economic Recession Indicator", layout="wide")
+    st.title("📊 Economic Recession Indicator Heatmap")
 
     with st.expander("ℹ️ Disclaimer"):
         st.markdown("""
