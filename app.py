@@ -1,5 +1,4 @@
-
-logic: import streamlit as st
+import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -75,11 +74,9 @@ def load_data():
     return df
 
 def color_for_value(attr, val):
-    if pd.isna(val):
+    if attr not in THRESHOLDS or pd.isnull(val):
         return 'gray'
-    t = THRESHOLDS.get(attr)
-    if not t:
-        return 'gray'
+    t = THRESHOLDS[attr]
     if val <= t['green']:
         return 'green'
     elif val <= t['yellow']:
@@ -121,7 +118,7 @@ def create_heatmap(df, selected_months):
         y=[d.strftime("%b %Y") for d in pivot_df.index],
         text=hover_text,
         hoverinfo='text',
-        colorscale=[[0, 'green'], [0.5, 'yellow'], [1, 'red']],
+        colorscale=[[0, 'green'], [0.25, 'lightgray'], [0.5, 'yellow'], [1, 'red']],
         showscale=False,
         xgap=2,
         ygap=2
@@ -155,31 +152,42 @@ def create_heatmap(df, selected_months):
 
 def main():
     st.set_page_config(page_title="MacroGamut Economic Recession Indicator", layout="wide")
+    st.image("https://github.com/androoo-ritter/recession-indicator-heatmap/blob/main/logo.png?raw=true", width=50)
+    st.markdown("<h1 style='margin-bottom: -10px;'>MacroGamut Economic Recession Indicator</h1>", unsafe_allow_html=True)
 
-    st.markdown("""
-        <div style='display: flex; align-items: center; gap: 10px; margin-bottom: -20px;'>
-            <img src="https://github.com/androoo-ritter/recession-indicator-heatmap/blob/main/logo.png?raw=true" width="40" style="margin: 0;" />
-            <h1 style='margin: 0;'>MacroGamut Economic Recession Indicator</h1>
-        </div>
-    """, unsafe_allow_html=True)
-
-    with st.expander("📝 Disclaimer", expanded=False):
+    with st.expander("📘 Disclaimer", expanded=False):
         st.markdown("""
         This dashboard uses publicly available economic time series data from the [Federal Reserve Economic Data (FRED)](https://fred.stlouisfed.org/) database.  
         It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
         Please independently verify any figures you use from this page.  
-        
         Given that each economic indicator is published at different intervals (daily, monthly, quarterly, etc.),  
         this tool aggregates data by computing the **median value for each indicator per month**.
         """)
 
-    with st.expander("🎨 Color Legend", expanded=False):
+    with st.expander("🟦 Color Legend", expanded=False):
         st.markdown("""
         - 🟩 **Green**: Healthy/expected range  
         - 🟨 **Yellow**: Caution  
         - 🟥 **Red**: Warning / likely signal  
         - ⬜ **Grey**: No data available for that month
         """)
+
+    df = load_data()
+
+    all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
+    all_months = sorted(all_months, reverse=True)
+    month_labels = [d.strftime("%b %Y") for d in all_months]
+    month_map = dict(zip(month_labels, all_months))
+
+    selected_labels = st.multiselect(
+        "Filter by Month-Year:",
+        options=month_labels,
+        default=month_labels[:36]
+    )
+    selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
+
+    fig = create_heatmap(df, selected_months)
+    st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("🎯 View Thresholds by Data Point", expanded=False):
         threshold_df = pd.DataFrame([
@@ -193,23 +201,6 @@ def main():
         st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
             f"<tr><td>{dp}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
             for dp, url in FRED_SOURCES.items()) + "</tbody></table>", unsafe_allow_html=True)
-
-    df = load_data()
-
-    all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
-    all_months = sorted(all_months, reverse=True)
-    month_labels = [d.strftime("%b %Y") for d in all_months]
-    month_map = dict(zip(month_labels, all_months))
-
-    selected_labels = st.multiselect(
-        "Filter by Month-Year:",
-        options=month_labels,
-        default=month_labels[:36]  # Latest 3 years
-    )
-    selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
-
-    fig = create_heatmap(df, selected_months)
-    st.plotly_chart(fig, use_container_width=True)
 
 if __name__ == "__main__":
     main()
