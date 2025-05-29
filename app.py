@@ -74,9 +74,11 @@ def load_data():
     return df
 
 def color_for_value(attr, val):
-    if attr not in THRESHOLDS or pd.isnull(val):
+    if pd.isna(val):
         return 'gray'
-    t = THRESHOLDS[attr]
+    t = THRESHOLDS.get(attr)
+    if not t:
+        return 'gray'
     if val <= t['green']:
         return 'green'
     elif val <= t['yellow']:
@@ -118,7 +120,7 @@ def create_heatmap(df, selected_months):
         y=[d.strftime("%b %Y") for d in pivot_df.index],
         text=hover_text,
         hoverinfo='text',
-        colorscale=[[0, 'green'], [0.5, 'yellow'], [1, 'red'], [0.25, 'lightgray']],
+        colorscale=[[0, 'green'], [0.5, 'yellow'], [1, 'red']],
         showscale=False,
         xgap=2,
         ygap=2
