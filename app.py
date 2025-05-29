@@ -33,7 +33,7 @@ THRESHOLDS = {
     'VIX': {'green': 20, 'yellow': 30, 'red_expl': 'High market volatility'},
 }
 
-#Changes naming convention for heatmap attribute titles
+# Attribute labels for renaming
 ATTRIBUTE_LABELS = {
     '3-Month': '3-Month Treasury',
     '20-Year': '20-Year Treasury',
@@ -151,7 +151,7 @@ def create_heatmap(df, selected_months):
         text=hover_text,
         hoverinfo='text',
         colorscale=[
-            [0.0, 'lightgray'],   # Grey for missing data
+            [0.0, 'lightgray'],
             [0.001, 'green'],
             [0.5, 'yellow'],
             [1.0, 'red']
@@ -190,7 +190,6 @@ def create_heatmap(df, selected_months):
 def main():
     st.set_page_config(page_title="MacroGamut Economic Recession Indicator", layout="wide")
 
-    # 🔄 Refresh button to force reload from Google Sheets
     if st.button("🔄 Refresh Data from Source"):
         st.cache_data.clear()
 
@@ -221,7 +220,13 @@ def main():
 
     with st.expander("🎯 View Thresholds by Data Point", expanded=False):
         threshold_df = pd.DataFrame([
-            {"Data Point": ATTRIBUTE_LABELS.get(attr, attr), "Green <=": v["green"], "Yellow <=": v["yellow"], "Red =": f">{v['yellow']}", "Explanation": v['red_expl"]}
+            {
+                "Data Point": ATTRIBUTE_LABELS.get(attr, attr),
+                "Green ≤": v["green"],
+                "Yellow ≤": v["yellow"],
+                "Red =": f">{v['yellow']}",
+                "Explanation": v["red_expl"]
+            }
             for attr, v in THRESHOLDS.items()
         ])
         st.dataframe(threshold_df, use_container_width=True)
@@ -229,7 +234,7 @@ def main():
     with st.expander("📎 View FRED Data Source Reference", expanded=False):
         st.markdown("Each metric below links directly to its FRED series page.")
         st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
-            f"<tr><td>{ATTRIBUTE_LABELS.get(dp, dp)}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>" 
+            f"<tr><td>{ATTRIBUTE_LABELS.get(dp, dp)}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>"
             for dp, url in FRED_SOURCES.items()) + "</tbody></table>", unsafe_allow_html=True)
 
     df = load_data()
