@@ -3,7 +3,17 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# Thresholds dict here (omitted for brevity, just copy from prior)
+# Define thresholds for each attribute
+THRESHOLDS = {
+    # Example attribute thresholds (customize with your real values)
+    'CPI': {'green': 2, 'yellow': 4},
+    'Unemployment': {'green': 4, 'yellow': 6},
+    'Payrolls': {'green': -0.5, 'yellow': -1.0},
+    # Add all 26 attributes and their green/yellow thresholds here...
+    # Example:
+    # '3-Month': {'green': 1, 'yellow': 2},
+    # ...
+}
 
 DATA_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQSg0j0ZpwXjDgSS1IEA4MA2-SwTbAhNgy8hqQVveM4eeWWIg6zxgMq-NpUIZBzQvssY2LsSo3kfc8x/pub?gid=995887444&single=true&output=csv"
 
@@ -18,29 +28,46 @@ def load_data():
     return df
 
 def color_for_value(attr, val):
-    # Same threshold logic as before
-    # ...
+    if pd.isna(val):
+        return 'gray'
+    thresholds = THRESHOLDS.get(attr)
+    if not thresholds:
+        # Default if no threshold defined
+        return 'gray'
+    green = thresholds['green']
+    yellow = thresholds['yellow']
+
+    # Example logic: lower value better? You may need to adjust per attribute
+    # Here assuming higher values worse for simplicity
+    if val <= green:
+        return 'green'
+    elif val <= yellow:
+        return 'yellow'
+    else:
+        return 'red'
 
 def create_heatmap(df, max_rows=100):
+    # Compute median values by MonthYear and Attribute
     median_df = df.groupby(['MonthYear', 'Attribute'])['Value'].median().reset_index()
     pivot_df = median_df.pivot(index='MonthYear', columns='Attribute', values='Value')
 
-    # Sort descending (latest date on top)
+    # Sort descending (latest dates first)
     pivot_df = pivot_df.sort_index(ascending=False)
 
-    # Limit number of rows to max_rows (if you want scrolling to work well)
+    # Limit to max_rows to keep chart manageable
     if len(pivot_df) > max_rows:
-        pivot_df = pivot_df.head(max_rows)  # take latest max_rows
+        pivot_df = pivot_df.head(max_rows)
 
+    # Generate colors for heatmap
     colors = []
     for dt in pivot_df.index:
         row_colors = []
         for attr in pivot_df.columns:
             val = pivot_df.at[dt, attr]
-            color = color_for_value(attr, val)
-            row_colors.append(color)
+            row_colors.append(color_for_value(attr, val))
         colors.append(row_colors)
 
+    # Build hover text for tooltips
     hover_text = []
     for dt in pivot_df.index:
         row_hover = []
@@ -67,7 +94,7 @@ def create_heatmap(df, max_rows=100):
         ygap=3,
     ))
 
-    # Annotations with median values inside cells
+    # Add median value annotations inside cells
     annotations = []
     for y_i, dt in enumerate(pivot_df.index):
         for x_i, attr in enumerate(pivot_df.columns):
@@ -85,7 +112,7 @@ def create_heatmap(df, max_rows=100):
 
     fig.update_layout(
         xaxis=dict(side='top'),
-        yaxis=dict(autorange='reversed'),  # Reverse so latest is on top
+        yaxis=dict(autorange='reversed'),  # latest month at top
         template='plotly_dark',
         margin=dict(l=150, r=20, t=120, b=100),
         height=700,
