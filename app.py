@@ -145,12 +145,20 @@ def color_for_value(attr, val):
     t = THRESHOLDS.get(attr)
     if not t:
         return 'gray'
-    if val <= t['green']:
-        return 'green'
-    elif val <= t['yellow']:
-        return 'yellow'
+    if t.get('inverted', False):
+        if val >= t['green']:
+            return 'green'
+        elif val >= t['yellow']:
+            return 'yellow'
+        else:
+            return 'red'
     else:
-        return 'red'
+        if val <= t['green']:
+            return 'green'
+        elif val <= t['yellow']:
+            return 'yellow'
+        else:
+            return 'red'
 
 def create_heatmap(df, selected_months):
     attributes = df['Attribute'].unique()
