@@ -231,7 +231,7 @@ def main():
                 "Data Point": ATTRIBUTE_LABELS.get(attr, attr),
                 "Green ≤": v["green"],
                 "Yellow ≤": v["yellow"],
-                "Red =": f">{v['yellow']}",
+                "Red >": f"{v['yellow']}",
                 "Explanation": v["red_expl"]
             }
             for attr, v in THRESHOLDS.items()
