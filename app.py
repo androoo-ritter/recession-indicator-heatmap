@@ -272,8 +272,8 @@ def main():
                 "Explanation": v["red_expl"]
             }
             for attr, v in THRESHOLDS.items()
-    ])
-    st.dataframe(threshold_df, use_container_width=True)
+        ])
+        st.dataframe(threshold_df, use_container_width=True)
 
     with st.expander("📎 View FRED Data Source Reference", expanded=False):
         st.markdown("Each metric below links directly to its FRED series page.")
