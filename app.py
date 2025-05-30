@@ -3,13 +3,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# MODIFIED: Added INVERTED_METRICS list for metrics where lower values are worse
-INVERTED_METRICS = [
-    'Bank Credit', 'Consumer Sentiment', 'Loans and Leases', 'M1', 'M2',
-    'Payrolls', 'Real GDP', 'Retail Sales', 'SP500', 'Transport Jobs'
-]
-
-# Thresholds per attribute with red zone explanation (unchanged)
+# Thresholds per attribute with red zone explanation
 THRESHOLDS = {
     '3-Month': {'green': 2.5, 'yellow': 4.5, 'red_expl': 'Excessively high short-term interest rates'},
     '20-Year': {'green': 3.5, 'yellow': 4.5, 'red_expl': 'Long-term rates may signal inflation or instability'},
@@ -38,7 +32,7 @@ THRESHOLDS = {
     'VIX': {'green': 20, 'yellow': 30, 'red_expl': 'High market volatility'},
 }
 
-# Attribute labels for renaming (unchanged)
+# Attribute labels for renaming
 ATTRIBUTE_LABELS = {
     '3-Month': '3-Month Treasury',
     '20-Year': '20-Year Treasury',
@@ -67,7 +61,6 @@ ATTRIBUTE_LABELS = {
     'VIX': 'VIX',
 }
 
-# FRED sources (unchanged)
 FRED_SOURCES = {
     "3-Month": "https://fred.stlouisfed.org/series/DGS3MO",
     "20-Year": "https://fred.stlouisfed.org/series/DGS20",
@@ -96,7 +89,7 @@ FRED_SOURCES = {
     "VIX": "https://fred.stlouisfed.org/series/VIXCLS",
 }
 
-# Publication frequencies (unchanged)
+# Define the publication frequencies dictionary
 PUBLICATION_FREQUENCIES = {
     "3-Month": "Daily",
     "20-Year": "Daily",
@@ -137,72 +130,27 @@ def format_value(val):
 
 CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQSg0j0ZpwXjDgSS1IEA4MA2-SwTbAhNgy8hqQVveM4eeWWIg6zxgMq-NpUIZBzQvssY2LsSo3kfc8x/pub?gid=995887444&single=true&output=csv"
 
-# MODIFIED: Added attribute_mapping and debug logging
 @st.cache_data
 def load_data():
     df = pd.read_csv(CSV_URL)
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
     df['Value'] = pd.to_numeric(df['Value'], errors='coerce')
     df = df.dropna(subset=['Date', 'Value'])
-    
-    # Map CSV attributes to THRESHOLDS/FRED_SOURCES keys
-    attribute_mapping = {
-        '3-Month Treasury': '3-Month',
-        '20-Year Treasury': '20-Year',
-        '30-Year Treasury': '30-Year',
-        'Bank Credit (Billions)': 'Bank Credit',
-        'Claims': 'Claims',
-        'Consumer Sentiment': 'Consumer Sentiment',
-        'Continued Claims': 'Continued Claims',
-        'Core CPI': 'Core CPI',
-        'CPI': 'CPI',
-        'CC Delinquency (%)': 'Credit Card Delinquency',
-        'Loans & Leases (Billions)': 'Loans and Leases',
-        'M1 (Billions)': 'M1',
-        'M2 (Billions)': 'M2',
-        'Mortgage Delinquency Rate': 'Mortgage Delinquency',
-        'Nonfarm Payrolls (Thousands)': 'Payrolls',
-        'Fed Funds Rate': 'Real FFR',
-        'Real GDP': 'Real GDP',
-        'Retail Sales (Millions)': 'Retail Sales',
-        'Sahm': 'Sahm',
-        'S&P 500': 'SP500',
-        'Transport Jobs (Thousands)': 'Transport Jobs',
-        'Unemployment Rate (%)': 'Unemployment',
-        'US HY Index': 'USHY',
-        'US IG Index': 'USIG',
-        'VIX': 'VIX'
-    }
-    df['Attribute'] = df['Attribute'].map(attribute_mapping).fillna(df['Attribute'])
     df['MonthYear'] = df['Date'].dt.to_period('M').dt.to_timestamp()
-    
-    # Debug logging (hidden in expander)
-    with st.expander("🔍 Debug Info (for developers)", expanded=False):
-        st.write("CSV Attribute values after mapping:", df['Attribute'].unique().tolist())
-    
     return df
 
-# MODIFIED: Updated to handle inverted metrics
 def color_for_value(attr, val):
     if pd.isna(val):
         return 'gray'
     t = THRESHOLDS.get(attr)
     if not t:
         return 'gray'
-    if attr in INVERTED_METRICS:
-        if val >= t['green']:
-            return 'green'
-        elif val >= t['yellow']:
-            return 'yellow'
-        else:
-            return 'red'
+    if val <= t['green']:
+        return 'green'
+    elif val <= t['yellow']:
+        return 'yellow'
     else:
-        if val <= t['green']:
-            return 'green'
-        elif val <= t['yellow']:
-            return 'yellow'
-        else:
-            return 'red'
+        return 'red'
 
 def create_heatmap(df, selected_months):
     attributes = df['Attribute'].unique()
@@ -278,7 +226,6 @@ def create_heatmap(df, selected_months):
 def main():
     st.set_page_config(page_title="MacroGamut Economic Recession Indicator", layout="wide")
 
-    # MODIFIED: Temporary cache clear for testing (remove after confirming)
     if st.button("🔄 Refresh Data from Source"):
         st.cache_data.clear()
 
@@ -307,25 +254,18 @@ def main():
         - **⬜ Grey**: No data available for that month
         """)
 
-    # MODIFIED: Updated thresholds expander to handle inverted metrics
     with st.expander("🎯 View Thresholds by Data Point", expanded=False):
-        st.markdown("**Note**: For metrics like S&P 500, lower values indicate worse conditions (Red < threshold). For metrics like Unemployment, higher values indicate worse conditions (Red > threshold).")
         threshold_df = pd.DataFrame([
             {
                 "Data Point": ATTRIBUTE_LABELS.get(attr, attr),
-                "Green": f"≥ {v['green']}" if attr in INVERTED_METRICS else f"≤ {v['green']}",
-                "Yellow": f"≥ {v['yellow']}" if attr in INVERTED_METRICS else f"≤ {v['yellow']}",
-                "Red": f"< {v['yellow']}" if attr in INVERTED_METRICS else f"> {v['yellow']}",
+                "Green ≤": v["green"],
+                "Yellow ≤": v["yellow"],
+                "Red >": f"{v['yellow']}",
                 "Explanation": v["red_expl"]
             }
             for attr, v in THRESHOLDS.items()
         ])
         st.dataframe(threshold_df, use_container_width=True)
-        
-        # Debug logging (hidden in expander)
-        with st.expander("🔍 Threshold Debug Info (for developers)", expanded=False):
-            st.write("Threshold metrics:", list(THRESHOLDS.keys()))
-            st.write("Inverted metrics:", INVERTED_METRICS)
 
     with st.expander("📎 View FRED Data Source Reference", expanded=False):
         st.markdown("Each metric below links directly to its FRED series page.")
