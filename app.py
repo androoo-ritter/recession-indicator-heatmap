@@ -89,6 +89,35 @@ FRED_SOURCES = {
     "VIX": "https://fred.stlouisfed.org/series/VIXCLS",
 }
 
+# Define the publication frequencies dictionary
+PUBLICATION_FREQUENCIES = {
+    "3-Month": "Daily",
+    "20-Year": "Daily",
+    "30-Year": "Daily",
+    "Bank Credit": "Weekly",
+    "Claims": "Weekly",
+    "Consumer Sentiment": "Monthly",
+    "Continued Claims": "Weekly",
+    "Core CPI": "Monthly",
+    "CPI": "Monthly",
+    "Credit Card Delinquency": "Quarterly",
+    "Loans & Leases": "Weekly",
+    "M1": "Monthly",
+    "M2": "Monthly",
+    "Mortgage Delinquency": "Quarterly",
+    "Nonfarm Payrolls": "Monthly",
+    "Fed Funds Rate": "Monthly",
+    "Real GDP": "Quarterly",
+    "Retail Sales": "Monthly",
+    "Sahm": "Monthly",
+    "S&P 500": "Daily",
+    "Transport Jobs": "Monthly",
+    "Unemployment Rate": "Monthly",
+    "US HY Index": "Daily",
+    "US IG Index": "Daily",
+    "VIX": "Daily"
+}
+
 def format_value(val):
     if pd.isna(val):
         return "N/A"
@@ -240,9 +269,15 @@ def main():
 
     with st.expander("📎 View FRED Data Source Reference", expanded=False):
         st.markdown("Each metric below links directly to its FRED series page.")
-        st.markdown("<table><thead><tr><th>Data Point</th><th>FRED Link</th></tr></thead><tbody>" + "".join(
-            f"<tr><td>{ATTRIBUTE_LABELS.get(dp, dp)}</td><td><a href='{url}' target='_blank'>{url}</a></td></tr>"
-            for dp, url in FRED_SOURCES.items()) + "</tbody></table>", unsafe_allow_html=True)
+        st.markdown(
+            "<table><thead><tr><th>Data Point</th><th>FRED Link</th><th>Publication Frequency</th></tr></thead><tbody>" +
+            "".join(
+                f"<tr><td>{ATTRIBUTE_LABELS.get(dp, dp)}</td><td><a href='{url}' target='_blank'>{url}</a></td><td>{PUBLICATION_FREQUENCIES.get(dp, 'N/A')}</td></tr>"
+                for dp, url in FRED_SOURCES.items()
+            ) +
+            "</tbody></table>",
+            unsafe_allow_html=True
+        )
 
     df = load_data()
 
