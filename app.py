@@ -101,7 +101,7 @@ PUBLICATION_FREQUENCIES = {
     "Core CPI": "Monthly",
     "CPI": "Monthly",
     "Credit Card Delinquency": "Quarterly",
-    "Loans and Leases": "Weekly",
+    "Loans & Leases": "Weekly",
     "M1": "Monthly",
     "M2": "Monthly",
     "Mortgage Delinquency": "Quarterly",
