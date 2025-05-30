@@ -253,19 +253,19 @@ def main():
         - **🟥 Red**: Warning / likely signal  
         - **⬜ Grey**: No data available for that month
         """)
-        
+
     with st.expander("🎯 View Thresholds by Data Point", expanded=False):
-    threshold_df = pd.DataFrame([
-        {
-            "Data Point": ATTRIBUTE_LABELS.get(attr, attr),
-            "Green ≤": v["green"],
-            "Yellow ≤": v["yellow"],
-            "Red >": f"{v['yellow']}",
-            "Explanation": v["red_expl"]
-        }
-        for attr, v in THRESHOLDS.items()
-    ])
-    st.dataframe(threshold_df, use_container_width=True)
+        threshold_df = pd.DataFrame([
+            {
+                "Data Point": ATTRIBUTE_LABELS.get(attr, attr),
+                "Green ≤": v["green"],
+                "Yellow ≤": v["yellow"],
+                "Red >": f"{v['yellow']}",
+                "Explanation": v["red_expl"]
+            }
+            for attr, v in THRESHOLDS.items()
+        ])
+        st.dataframe(threshold_df, use_container_width=True)
 
     with st.expander("📎 View FRED Data Source Reference", expanded=False):
         st.markdown("Each metric below links directly to its FRED series page.")
