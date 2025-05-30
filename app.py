@@ -263,15 +263,15 @@ def main():
         """)
 
     with st.expander("🎯 View Thresholds by Data Point", expanded=False):
-    threshold_df = pd.DataFrame([
-        {
-            "Data Point": ATTRIBUTE_LABELS.get(attr, attr),
-            "Green": f"≥ {v['green']}" if v.get('inverted') else f"≤ {v['green']}",
-            "Yellow": f"≥ {v['yellow']}" if v.get('inverted') else f"≤ {v['yellow']}",
-            "Red": f"< {v['yellow']}" if v.get('inverted') else f"> {v['yellow']}",
-            "Explanation": v["red_expl"]
-        }
-        for attr, v in THRESHOLDS.items()
+        threshold_df = pd.DataFrame([
+            {
+                "Data Point": ATTRIBUTE_LABELS.get(attr, attr),
+                "Green": f"≥ {v['green']}" if v.get('inverted') else f"≤ {v['green']}",
+                "Yellow": f"≥ {v['yellow']}" if v.get('inverted') else f"≤ {v['yellow']}",
+                "Red": f"< {v['yellow']}" if v.get('inverted') else f"> {v['yellow']}",
+                "Explanation": v["red_expl"]
+            }
+            for attr, v in THRESHOLDS.items()
     ])
     st.dataframe(threshold_df, use_container_width=True)
 
