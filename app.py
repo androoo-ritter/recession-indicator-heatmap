@@ -3,7 +3,10 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
-# Thresholds per attribute with red zone explanation
+# ADDED: List of metrics where lower values are worse
+INVERTED_METRICS = ['SP500', 'Consumer Sentiment', 'Bank Credit', 'Loans and Leases', 'M1', 'M2', 'Payrolls', 'Real GDP', 'Retail Sales', 'Transport Jobs']
+
+# Thresholds per attribute with red zone explanation (unchanged)
 THRESHOLDS = {
     '3-Month': {'green': 2.5, 'yellow': 4.5, 'red_expl': 'Excessively high short-term interest rates'},
     '20-Year': {'green': 3.5, 'yellow': 4.5, 'red_expl': 'Long-term rates may signal inflation or instability'},
@@ -32,7 +35,7 @@ THRESHOLDS = {
     'VIX': {'green': 20, 'yellow': 30, 'red_expl': 'High market volatility'},
 }
 
-# Attribute labels for renaming
+# Attribute labels for renaming (unchanged)
 ATTRIBUTE_LABELS = {
     '3-Month': '3-Month Treasury',
     '20-Year': '20-Year Treasury',
@@ -61,6 +64,7 @@ ATTRIBUTE_LABELS = {
     'VIX': 'VIX',
 }
 
+# FRED sources (unchanged)
 FRED_SOURCES = {
     "3-Month": "https://fred.stlouisfed.org/series/DGS3MO",
     "20-Year": "https://fred.stlouisfed.org/series/DGS20",
@@ -89,7 +93,7 @@ FRED_SOURCES = {
     "VIX": "https://fred.stlouisfed.org/series/VIXCLS",
 }
 
-# Define the publication frequencies dictionary
+# Publication frequencies (unchanged)
 PUBLICATION_FREQUENCIES = {
     "3-Month": "Daily",
     "20-Year": "Daily",
@@ -132,27 +136,67 @@ CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQSg0j0ZpwXjDgSS1IEA4
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv(CSV_URL)
-    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-    df['Value'] = pd.to_numeric(df['Value'], errors='coerce')
-    df = df.dropna(subset=['Date', 'Value'])
-    df['MonthYear'] = df['Date'].dt.to_period('M').dt.to_timestamp()
-    return df
+    try:
+        df = pd.read_csv(CSV_URL)
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        df['Value'] = pd.to_numeric(df['Value'], errors='coerce')
+        df = df.dropna(subset=['Date', 'Value'])
 
+        # Dynamic attribute mapping based on CSV values
+        attribute_mapping = {}
+        csv_attributes = df['Attribute'].unique()
+        for attr in csv_attributes:
+            for key, label in ATTRIBUTE_LABELS.items():
+                if attr == label or attr == key:
+                    attribute_mapping[attr] = key
+        df['Attribute'] = df['Attribute'].map(attribute_mapping).fillna(df['Attribute'])
+
+        df['MonthYear'] = df['Date'].dt.to_period('M').dt.to_timestamp()
+
+        # Debug logging (hidden)
+        with st.expander("🔍 Debug: Data Loading (Developers Only)", expanded=False):
+            st.write("CSV Attributes (original):", csv_attributes.tolist())
+            st.write("Mapped Attributes:", df['Attribute'].unique().tolist())
+            unmapped = [attr for attr in df['Attribute'].unique() if attr not in THRESHOLDS]
+            if unmapped:
+                st.warning(f"Unmapped attributes: {unmapped}")
+
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return pd.DataFrame()
+
+@st.cache_data
 def color_for_value(attr, val):
-    if pd.isna(val):
+    try:
+        if pd.isna(val):
+            return 'gray'
+        t = THRESHOLDS.get(attr)
+        if not t:
+            return 'gray'
+        if attr in INVERTED_METRICS:
+            if val >= t['green']:
+                return 'green'
+            elif val >= t['yellow']:
+                return 'yellow'
+            else:
+                return 'red'
+        else:
+            if val <= t['green']:
+                return 'green'
+            elif val <= t['yellow']:
+                return 'yellow'
+            else:
+                return 'red'
+    except Exception as e:
+        st.expander("🔍 Debug: Color Assignment (Developers Only)", expanded=False).write(f"Error in color_for_value for {attr}: {str(e)}")
         return 'gray'
-    t = THRESHOLDS.get(attr)
-    if not t:
-        return 'gray'
-    if val <= t['green']:
-        return 'green'
-    elif val <= t['yellow']:
-        return 'yellow'
-    else:
-        return 'red'
 
 def create_heatmap(df, selected_months):
+    if df.empty:
+        st.error("No data available to create heatmap.")
+        return go.Figure()
+
     attributes = df['Attribute'].unique()
     all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
     full_index = pd.MultiIndex.from_product([attributes, all_months], names=['Attribute', 'MonthYear'])
@@ -255,17 +299,27 @@ def main():
         """)
 
     with st.expander("🎯 View Thresholds by Data Point", expanded=False):
-        threshold_df = pd.DataFrame([
-            {
-                "Data Point": ATTRIBUTE_LABELS.get(attr, attr),
-                "Green ≤": v["green"],
-                "Yellow ≤": v["yellow"],
-                "Red >": f"{v['yellow']}",
-                "Explanation": v["red_expl"]
-            }
-            for attr, v in THRESHOLDS.items()
-        ])
-        st.dataframe(threshold_df, use_container_width=True)
+        st.markdown("**Note**: Metrics like S&P 500 have lower values as worse (Red < threshold); metrics like Unemployment have higher values as worse (Red > threshold).")
+        try:
+            threshold_df = pd.DataFrame([
+                {
+                    "Data Point": ATTRIBUTE_LABELS.get(attr, attr),
+                    "Green": f"≥ {v['green']}" if attr in INVERTED_METRICS else f"≤ {v['green']}",
+                    "Yellow": f"≥ {v['yellow']}" if attr in INVERTED_METRICS else f"≤ {v['yellow']}",
+                    "Red": f"< {v['yellow']}" if attr in INVERTED_METRICS else f"> {v['yellow']}",
+                    "Explanation": v["red_expl"]
+                }
+                for attr, v in THRESHOLDS.items()
+            ])
+            st.dataframe(threshold_df, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error in thresholds table: {str(e)}")
+            st.dataframe(pd.DataFrame())  # Fallback empty table
+
+        # Debug logging
+        with st.expander("🔍 Debug: Thresholds (Developers Only)", expanded=False):
+            st.write("THRESHOLDS keys:", list(THRESHOLDS.keys()))
+            st.write("INVERTED_METRICS:", INVERTED_METRICS)
 
     with st.expander("📎 View FRED Data Source Reference", expanded=False):
         st.markdown("Each metric below links directly to its FRED series page.")
@@ -281,20 +335,23 @@ def main():
 
     df = load_data()
 
-    all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
-    all_months = sorted(all_months, reverse=True)
-    month_labels = [d.strftime("%b %Y") for d in all_months]
-    month_map = dict(zip(month_labels, all_months))
+    if not df.empty:
+        all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
+        all_months = sorted(all_months, reverse=True)
+        month_labels = [d.strftime("%b %Y") for d in all_months]
+        month_map = dict(zip(month_labels, all_months))
 
-    selected_labels = st.multiselect(
-        "Filter by Month-Year:",
-        options=month_labels,
-        default=month_labels[:36]
-    )
-    selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
+        selected_labels = st.multiselect(
+            "Filter by Month-Year:",
+            options=month_labels,
+            default=month_labels[:36]
+        )
+        selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
 
-    fig = create_heatmap(df, selected_months)
-    st.plotly_chart(fig, use_container_width=True)
+        fig = create_heatmap(df, selected_months)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.error("Failed to load data. Please try refreshing or check the data source.")
 
 if __name__ == "__main__":
     main()
