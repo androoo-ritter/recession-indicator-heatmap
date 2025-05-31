@@ -2,8 +2,13 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import logging
 
-# Updated THRESHOLDS with reversed logic and new values for TTM and YoY attributes
+# Set up logging to debug issues
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# [THRESHOLDS, ATTRIBUTE_LABELS, FRED_SOURCES, PUBLICATION_FREQUENCIES remain unchanged from previous version]
 THRESHOLDS = {
     '3-Month': {'red': 2.5, 'yellow': 4.5, 'red_expl': 'Low short-term interest rates (good)', 'inverted': True},
     '20-Year': {'red': 3.5, 'yellow': 4.5, 'red_expl': 'Low long-term rates (good)', 'inverted': True},
@@ -66,7 +71,7 @@ ATTRIBUTE_LABELS = {
     '3MOPayrolls': '3-Month Payroll Avg (Thousands)',
     '2YearTreasury': '2-Year Treasury',
     '10YearTreasury': '10-Year Treasury',
-    'ConstructionJobs': 'Construction Jobs',  # Fixed typo
+    'ConstructionJobs': 'Construction Jobs',
     '2s10s': '2s10s Spread',
 }
 
@@ -127,7 +132,7 @@ PUBLICATION_FREQUENCIES = {
     '3MOPayrolls': 'Monthly',
     '2YearTreasury': 'Daily',
     '10YearTreasury': 'Daily',
-    'ConstructionJobs': 'Monthly',  # Fixed typo
+    'ConstructionJobs': 'Monthly',
     '2s10s': 'Daily'
 }
 
@@ -145,12 +150,19 @@ CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQSg0j0ZpwXjDgSS1IEA4
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv(CSV_URL)
-    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-    df['Value'] = pd.to_numeric(df['Value'], errors='coerce')
-    df = df.dropna(subset=['Date', 'Value'])
-    df['MonthYear'] = df['Date'].dt.to_period('M').dt.to_timestamp()
-    return df
+    try:
+        logger.info("Loading data from CSV")
+        df = pd.read_csv(CSV_URL)
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        df['Value'] = pd.to_numeric(df['Value'], errors='coerce')
+        df = df.dropna(subset=['Date', 'Value'])
+        df['MonthYear'] = df['Date'].dt.to_period('M').dt.to_timestamp()
+        logger.info(f"Loaded {len(df)} rows of data")
+        return df
+    except Exception as e:
+        logger.error(f"Error loading data: {e}")
+        st.error(f"Failed to load data: {e}")
+        return pd.DataFrame()
 
 def color_for_value(attr, val):
     if pd.isna(val):
@@ -174,135 +186,148 @@ def color_for_value(attr, val):
             return 'green'  # Bad
 
 def calculate_ttm(df, attr, month):
-    attr_df = df[df['Attribute'] == attr].copy()
-    end_date = month
-    start_date = end_date - pd.offsets.MonthBegin(12)
-    window_df = attr_df[(attr_df['MonthYear'] >= start_date) & (attr_df['MonthYear'] <= end_date)]
-    if len(window_df) >= 12:
-        return window_df['Value'].mean().round(2)
-    return np.nan
+    try:
+        attr_df = df[df['Attribute'] == attr][['MonthYear', 'Value']].copy()
+        end_date = month
+        start_date = end_date - pd.offsets.MonthBegin(12)
+        window_df = attr_df[(attr_df['MonthYear'] >= start_date) & (attr_df['MonthYear'] <= end_date)]
+        if len(window_df) >= 12:
+            return window_df['Value'].mean().round(2)
+        return np.nan
+    except Exception as e:
+        logger.error(f"Error calculating TTM for {attr} at {month}: {e}")
+        return np.nan
 
 def calculate_yoy(df, attr, month):
-    attr_df = df[df['Attribute'] == attr].copy()
-    current = attr_df[attr_df['MonthYear'] == month]['Value']
-    last_year = attr_df[attr_df['MonthYear'] == (month - pd.offsets.MonthBegin(12))]['Value']
-    if not current.empty and not last_year.empty:
-        current_val = current.iloc[0]
-        last_year_val = last_year.iloc[0]
-        if last_year_val != 0:
-            return ((current_val - last_year_val) / last_year_val * 100).round(2)
-    return np.nan
+    try:
+        attr_df = df[df['Attribute'] == attr][['MonthYear', 'Value']].copy()
+        current = attr_df[attr_df['MonthYear'] == month]['Value']
+        last_year = attr_df[attr_df['MonthYear'] == (month - pd.offsets.MonthBegin(12))]['Value']
+        if not current.empty and not last_year.empty:
+            current_val = current.iloc[0]
+            last_year_val = last_year.iloc[0]
+            if last_year_val != 0:
+                return ((current_val - last_year_val) / last_year_val * 100).round(2)
+        return np.nan
+    except Exception as e:
+        logger.error(f"Error calculating YoY for {attr} at {month}: {e}")
+        return np.nan
 
 def create_heatmap(df, selected_months):
-    attributes = df['Attribute'].unique()
-    all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
-    full_index = pd.MultiIndex.from_product([attributes, all_months], names=['Attribute', 'MonthYear'])
+    try:
+        logger.info("Starting heatmap creation")
+        attributes = df['Attribute'].unique()
+        all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
+        logger.info(f"Processing {len(attributes)} attributes and {len(all_months)} months")
 
-    processed_values = []
-    ttm_attrs = ['Bank Credit', 'Loans and Leases', 'M1', 'M2', '2YearTreasury', '10YearTreasury']
-    yoy_attrs = ['Credit Card Delinquency', 'SP500', 'Transport Jobs', 'ConstructionJobs']
+        # Precompute TTM and YoY values to improve performance
+        ttm_attrs = ['Bank Credit', 'Loans and Leases', 'M1', 'M2', '2YearTreasury', '10YearTreasury']
+        yoy_attrs = ['Credit Card Delinquency', 'SP500', 'Transport Jobs', 'ConstructionJobs']
+        processed_values = []
 
-    for attr in attributes:
-        for month in all_months:
-            if attr in ttm_attrs:
-                value = calculate_ttm(df, attr, month)
-            elif attr in yoy_attrs:
-                value = calculate_yoy(df, attr, month)
-            else:
-                month_df = df[(df['Attribute'] == attr) & (df['MonthYear'] == month)]
-                value = month_df['Value'].median().round(2) if not month_df.empty else np.nan
-            processed_values.append({'Attribute': attr, 'MonthYear': month, 'Value': value})
+        for attr in attributes:
+            attr_df = df[df['Attribute'] == attr][['MonthYear', 'Value']].copy()
+            for month in all_months:
+                if attr in ttm_attrs:
+                    value = calculate_ttm(df, attr, month)
+                elif attr in yoy_attrs:
+                    value = calculate_yoy(df, attr, month)
+                else:
+                    month_df = attr_df[attr_df['MonthYear'] == month]
+                    value = month_df['Value'].median().round(2) if not month_df.empty else np.nan
+                processed_values.append({'Attribute': attr, 'MonthYear': month, 'Value': value})
 
-    full_df = pd.DataFrame(processed_values)
-    full_df = full_df[full_df['MonthYear'].isin(selected_months)]
+        full_df = pd.DataFrame(processed_values)
+        full_df = full_df[full_df['MonthYear'].isin(selected_months)]
+        if full_df.empty:
+            logger.warning("No data available for selected months")
+            st.warning("No data available for the selected months.")
+            return None
 
-    pivot_df = full_df.pivot(index='MonthYear', columns='Attribute', values='Value').sort_index(ascending=False)
+        pivot_df = full_df.pivot(index='MonthYear', columns='Attribute', values='Value').sort_index(ascending=False)
+        logger.info(f"Pivot table created with {len(pivot_df)} rows")
 
-    colors = []
-    for dt in pivot_df.index:
-        colors.append([color_for_value(attr, pivot_df.at[dt, attr]) for attr in pivot_df.columns])
+        colors = []
+        for dt in pivot_df.index:
+            colors.append([color_for_value(attr, pivot_df.at[dt, attr]) for attr in pivot_df.columns])
 
-    hover_text = []
-    for dt in pivot_df.index:
-        row = []
-        dt_str = dt.strftime("%b %Y")
-        for attr in pivot_df.columns:
-            val = pivot_df.at[dt, attr]
-            val_str = format_value(val)
-            calc_type = "TTM" if attr in ttm_attrs else "YoY %" if attr in yoy_attrs else "Median"
-            row.append(f"<b>{ATTRIBUTE_LABELS.get(attr, attr)}</b><br>{dt_str}<br>{calc_type}: {val_str}")
-        hover_text.append(row)
+        hover_text = []
+        for dt in pivot_df.index:
+            row = []
+            dt_str = dt.strftime("%b %Y")
+            for attr in pivot_df.columns:
+                val = pivot_df.at[dt, attr]
+                val_str = format_value(val)
+                calc_type = "TTM" if attr in ttm_attrs else "YoY %" if attr in yoy_attrs else "Median"
+                row.append(f"<b>{ATTRIBUTE_LABELS.get(attr, attr)}</b><br>{dt_str}<br>{calc_type}: {val_str}")
+            hover_text.append(row)
 
-    color_map = {'gray': 0.0, 'red': 0.001, 'yellow': 0.5, 'green': 1.0}
-    z_colors = np.array([[color_map.get(c, 0.0) for c in row] for row in colors])
+        color_map = {'gray': 0.0, 'red': 0.001, 'yellow': 0.5, 'green': 1.0}
+        z_colors = np.array([[color_map.get(c, 0.0) for c in row] for row in colors])
 
-    # Calculate dynamic row height to maintain consistent appearance
-    num_rows = len(pivot_df)
-    min_height = 600  # Minimum height to ensure readability
-    max_height = 1600  # Maximum height to prevent excessive size
-    default_rows = 36  # Reference number of rows for default appearance
-    default_row_height = 40  # Default row height (1440 / 36 = 40 pixels per row)
-    
-    # Scale row height inversely with number of rows to maintain readability
-    if num_rows <= default_rows:
-        row_height = default_row_height * (default_rows / max(num_rows, 3))  # Avoid division by zero
-    else:
-        row_height = default_row_height  # Use default row height for >36 rows
-    
-    # Set total height with a minimum to ensure readability
-    total_height = max(min_height, min(max_height, row_height * num_rows))
-    
-    # Adjust font size based on number of rows to maintain readability
-    font_size = 10 if num_rows <= 12 else 8 if num_rows <= 24 else 6
+        # Simplified height adjustment
+        num_rows = len(pivot_df)
+        min_height = 600
+        max_height = 1600
+        default_row_height = 40
+        total_height = max(min_height, min(max_height, default_row_height * num_rows))
+        font_size = 10 if num_rows <= 12 else 8 if num_rows <= 24 else 6
 
-    fig = go.Figure(data=go.Heatmap(
-        z=z_colors,
-        x=[ATTRIBUTE_LABELS.get(attr, attr) for attr in pivot_df.columns],
-        y=[d.strftime("%b %Y") for d in pivot_df.index],
-        text=hover_text,
-        hoverinfo='text',
-        colorscale=[
-            [0.0, 'lightgray'],
-            [0.001, 'red'],    # Good
-            [0.5, 'yellow'],   # Caution
-            [1.0, 'green']     # Bad
-        ],
-        showscale=False,
-        xgap=2,
-        ygap=2
-    ))
+        fig = go.Figure(data=go.Heatmap(
+            z=z_colors,
+            x=[ATTRIBUTE_LABELS.get(attr, attr) for attr in pivot_df.columns],
+            y=[d.strftime("%b %Y") for d in pivot_df.index],
+            text=hover_text,
+            hoverinfo='text',
+            colorscale=[
+                [0.0, 'lightgray'],
+                [0.001, 'red'],
+                [0.5, 'yellow'],
+                [1.0, 'green']
+            ],
+            showscale=False,
+            xgap=2,
+            ygap=2
+        ))
 
-    annotations = []
-    for y_idx, dt in enumerate(pivot_df.index):
-        for x_idx, attr in enumerate(pivot_df.columns):
-            val = pivot_df.at[dt, attr]
-            if pd.notnull(val):
-                annotations.append(dict(
-                    x=ATTRIBUTE_LABELS.get(attr, attr),
-                    y=dt.strftime("%b %Y"),
-                    text=format_value(val),
-                    showarrow=False,
-                    font=dict(color="black", size=font_size),
-                    xanchor="center",
-                    yanchor="middle"
-                ))
+        annotations = []
+        for y_idx, dt in enumerate(pivot_df.index):
+            for x_idx, attr in enumerate(pivot_df.columns):
+                val = pivot_df.at[dt, attr]
+                if pd.notnull(val):
+                    annotations.append(dict(
+                        x=ATTRIBUTE_LABELS.get(attr, attr),
+                        y=dt.strftime("%b %Y"),
+                        text=format_value(val),
+                        showarrow=False,
+                        font=dict(color="black", size=font_size),
+                        xanchor="center",
+                        yanchor="middle"
+                    ))
 
-    fig.update_layout(
-        xaxis=dict(side='top', tickfont=dict(size=font_size)),
-        yaxis=dict(autorange='reversed', tickfont=dict(size=font_size)),
-        annotations=annotations,
-        margin=dict(l=150, r=20, t=120, b=40),
-        template='plotly_white',
-        height=total_height
-    )
+        fig.update_layout(
+            xaxis=dict(side='top', tickfont=dict(size=font_size)),
+            yaxis=dict(autorange='reversed', tickfont=dict(size=font_size)),
+            annotations=annotations,
+            margin=dict(l=150, r=20, t=120, b=40),
+            template='plotly_white',
+            height=total_height
+        )
 
-    return fig
+        logger.info("Heatmap figure created successfully")
+        return fig
+
+    except Exception as e:
+        logger.error(f"Error creating heatmap: {e}")
+        st.error(f"Failed to create heatmap: {e}")
+        return None
 
 def main():
     st.set_page_config(page_title="MacroGamut Economic Recession Indicator", layout="wide")
 
     if st.button("🔄 Refresh Data from Source"):
         st.cache_data.clear()
+        st.experimental_rerun()
 
     st.markdown("""
         <div style='display: flex; align-items: center; gap: 15px; margin-bottom: -10px;'>
@@ -358,6 +383,9 @@ def main():
         )
 
     df = load_data()
+    if df.empty:
+        st.error("No data loaded. Please check the data source or try refreshing.")
+        return
 
     all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
     all_months = sorted(all_months, reverse=True)
@@ -371,8 +399,12 @@ def main():
     )
     selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
 
-    fig = create_heatmap(df, selected_months)
-    st.plotly_chart(fig, use_container_width=True)
+    with st.spinner("Generating heatmap..."):
+        fig = create_heatmap(df, selected_months)
+        if fig is not None:
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.error("Failed to generate heatmap. Please check the logs or try a different month selection.")
 
 if __name__ == "__main__":
     main()
