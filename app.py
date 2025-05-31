@@ -3,12 +3,13 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import logging
+from functools import lru_cache
 
-# Set up logging to debug issues
+# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# [THRESHOLDS, ATTRIBUTE_LABELS, FRED_SOURCES, PUBLICATION_FREQUENCIES remain unchanged from previous version]
+# [THRESHOLDS, ATTRIBUTE_LABELS, FRED_SOURCES, PUBLICATION_FREQUENCIES unchanged]
 THRESHOLDS = {
     '3-Month': {'red': 2.5, 'yellow': 4.5, 'red_expl': 'Low short-term interest rates (good)', 'inverted': True},
     '20-Year': {'red': 3.5, 'yellow': 4.5, 'red_expl': 'Low long-term rates (good)', 'inverted': True},
@@ -185,21 +186,29 @@ def color_for_value(attr, val):
         else:
             return 'green'  # Bad
 
-def calculate_ttm(df, attr, month):
+@lru_cache(maxsize=1000)
+def calculate_ttm(attr, month_str, df_tuple):
     try:
+        df = pd.DataFrame(df_tuple, columns=['Date', 'Attribute', 'Value', 'MonthYear'])
+        df['MonthYear'] = pd.to_datetime(df['MonthYear'])
+        month = pd.to_datetime(month_str)
         attr_df = df[df['Attribute'] == attr][['MonthYear', 'Value']].copy()
         end_date = month
         start_date = end_date - pd.offsets.MonthBegin(12)
         window_df = attr_df[(attr_df['MonthYear'] >= start_date) & (attr_df['MonthYear'] <= end_date)]
-        if len(window_df) >= 12:
+        if len(window_df['MonthYear'].unique()) >= 12:
             return window_df['Value'].mean().round(2)
         return np.nan
     except Exception as e:
-        logger.error(f"Error calculating TTM for {attr} at {month}: {e}")
+        logger.error(f"Error calculating TTM for {attr} at {month_str}: {e}")
         return np.nan
 
-def calculate_yoy(df, attr, month):
+@lru_cache(maxsize=1000)
+def calculate_yoy(attr, month_str, df_tuple):
     try:
+        df = pd.DataFrame(df_tuple, columns=['Date', 'Attribute', 'Value', 'MonthYear'])
+        df['MonthYear'] = pd.to_datetime(df['MonthYear'])
+        month = pd.to_datetime(month_str)
         attr_df = df[df['Attribute'] == attr][['MonthYear', 'Value']].copy()
         current = attr_df[attr_df['MonthYear'] == month]['Value']
         last_year = attr_df[attr_df['MonthYear'] == (month - pd.offsets.MonthBegin(12))]['Value']
@@ -210,35 +219,53 @@ def calculate_yoy(df, attr, month):
                 return ((current_val - last_year_val) / last_year_val * 100).round(2)
         return np.nan
     except Exception as e:
-        logger.error(f"Error calculating YoY for {attr} at {month}: {e}")
+        logger.error(f"Error calculating YoY for {attr} at {month_str}: {e}")
         return np.nan
 
-def create_heatmap(df, selected_months):
+@st.cache_data
+def process_data(df, selected_months):
     try:
-        logger.info("Starting heatmap creation")
+        logger.info("Processing data for heatmap")
         attributes = df['Attribute'].unique()
         all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
-        logger.info(f"Processing {len(attributes)} attributes and {len(all_months)} months")
-
-        # Precompute TTM and YoY values to improve performance
         ttm_attrs = ['Bank Credit', 'Loans and Leases', 'M1', 'M2', '2YearTreasury', '10YearTreasury']
         yoy_attrs = ['Credit Card Delinquency', 'SP500', 'Transport Jobs', 'ConstructionJobs']
+
+        # Convert DataFrame to tuple for caching
+        df_tuple = [tuple(x) for x in df[['Date', 'Attribute', 'Value', 'MonthYear']].to_records(index=False)]
+
         processed_values = []
+        total_steps = len(attributes) * len(all_months)
+        progress_bar = st.progress(0)
+        step = 0
 
         for attr in attributes:
             attr_df = df[df['Attribute'] == attr][['MonthYear', 'Value']].copy()
             for month in all_months:
                 if attr in ttm_attrs:
-                    value = calculate_ttm(df, attr, month)
+                    value = calculate_ttm(attr, str(month), tuple(df_tuple))
                 elif attr in yoy_attrs:
-                    value = calculate_yoy(df, attr, month)
+                    value = calculate_yoy(attr, str(month), tuple(df_tuple))
                 else:
                     month_df = attr_df[attr_df['MonthYear'] == month]
                     value = month_df['Value'].median().round(2) if not month_df.empty else np.nan
                 processed_values.append({'Attribute': attr, 'MonthYear': month, 'Value': value})
+                step += 1
+                progress_bar.progress(min(step / total_steps, 1.0))
 
         full_df = pd.DataFrame(processed_values)
         full_df = full_df[full_df['MonthYear'].isin(selected_months)]
+        logger.info(f"Processed {len(full_df)} data points")
+        return full_df
+    except Exception as e:
+        logger.error(f"Error processing data: {e}")
+        st.error(f"Failed to process data: {e}")
+        return pd.DataFrame()
+
+def create_heatmap(df, selected_months):
+    try:
+        logger.info("Starting heatmap creation")
+        full_df = process_data(df, tuple(selected_months))
         if full_df.empty:
             logger.warning("No data available for selected months")
             st.warning("No data available for the selected months.")
@@ -252,6 +279,8 @@ def create_heatmap(df, selected_months):
             colors.append([color_for_value(attr, pivot_df.at[dt, attr]) for attr in pivot_df.columns])
 
         hover_text = []
+        ttm_attrs = ['Bank Credit', 'Loans and Leases', 'M1', 'M2', '2YearTreasury', '10YearTreasury']
+        yoy_attrs = ['Credit Card Delinquency', 'SP500', 'Transport Jobs', 'ConstructionJobs']
         for dt in pivot_df.index:
             row = []
             dt_str = dt.strftime("%b %Y")
@@ -265,7 +294,6 @@ def create_heatmap(df, selected_months):
         color_map = {'gray': 0.0, 'red': 0.001, 'yellow': 0.5, 'green': 1.0}
         z_colors = np.array([[color_map.get(c, 0.0) for c in row] for row in colors])
 
-        # Simplified height adjustment
         num_rows = len(pivot_df)
         min_height = 600
         max_height = 1600
