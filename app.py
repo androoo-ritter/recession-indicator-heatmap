@@ -37,7 +37,99 @@ THRESHOLDS = {
     '2s10s': {'red': 0.5, 'yellow': 0.0, 'red_expl': 'Positive yield curve (good)', 'inverted': False},
 }
 
-# [ATTRIBUTE_LABELS, FRED_SOURCES, PUBLICATION_FREQUENCIES remain unchanged]
+ATTRIBUTE_LABELS = {
+    '3-Month': '3-Month Treasury',
+    '20-Year': '20-Year Treasury',
+    '30-Year': '30-Year Treasury',
+    'Bank Credit': 'Bank Credit (Billions)',
+    'Claims': 'Claims',
+    'Consumer Sentiment': 'Consumer Sentiment',
+    'Continued Claims': 'Continued Claims',
+    'Core CPI': 'Core CPI',
+    'CPI': 'CPI',
+    'Credit Card Delinquency': 'CC Delinquency (%)',
+    'Loans and Leases': 'Loans & Leases (Billions)',
+    'M1': 'M1 (Billions)',
+    'M2': 'M2 (Billions)',
+    'Mortgage Delinquency': 'Mortgage Delinquency Rate',
+    'Payrolls': 'Nonfarm Payrolls (Thousands)',
+    'Real FFR': 'Fed Funds Rate',
+    'Real GDP': 'Real GDP',
+    'Retail Sales': 'Retail Sales (Millions)',
+    'Sahm': 'Sahm',
+    'SP500': 'S&P 500',
+    'Transport Jobs': 'Transport Jobs (Thousands)',
+    'Unemployment': 'Unemployment Rate (%)',
+    'USHY': 'US HY Index',
+    'USIG': 'US IG Index',
+    'VIX': 'VIX',
+    '3MOPayrolls': '3-Month Payroll Avg (Thousands)',
+    '2YearTreasury': '2-Year Treasury',
+    '10YearTreasury': '10-Year Treasury',
+    'ConstructionJobs': 'Construction Jobs',  # Fixed typo
+    '2s10s': '2s10s Spread',
+}
+
+FRED_SOURCES = {
+    "3-Month": "https://fred.stlouisfed.org/series/DGS3MO",
+    "20-Year": "https://fred.stlouisfed.org/series/DGS20",
+    "30-Year": "https://fred.stlouisfed.org/series/DGS30",
+    "Bank Credit": "https://fred.stlouisfed.org/series/TOTBKCR",
+    "Claims": "https://fred.stlouisfed.org/series/ICSA",
+    "Consumer Sentiment": "https://fred.stlouisfed.org/series/UMCSENT",
+    "Continued Claims": "https://fred.stlouisfed.org/series/CCSA",
+    "Core CPI": "https://fred.stlouisfed.org/series/CPILFESL",
+    "CPI": "https://fred.stlouisfed.org/series/CPIAUCSL",
+    "Credit Card Delinquency": "https://fred.stlouisfed.org/series/DRCCLACBS",
+    "Loans and Leases": "https://fred.stlouisfed.org/series/TOTLL",
+    "M1": "https://fred.stlouisfed.org/series/M1SL",
+    "M2": "https://fred.stlouisfed.org/series/M2SL",
+    "Mortgage Delinquency": "https://fred.stlouisfed.org/series/DRSFRMACBS",
+    "Payrolls": "https://fred.stlouisfed.org/series/PAYEMS",
+    "Real FFR": "https://fred.stlouisfed.org/series/FEDFUNDS",
+    "Real GDP": "https://fred.stlouisfed.org/series/A191RL1Q225SBEA",
+    "Retail Sales": "https://fred.stlouisfed.org/series/RSXFS",
+    "Sahm": "https://fred.stlouisfed.org/series/SAHMREALTIME",
+    "SP500": "https://fred.stlouisfed.org/series/SP500",
+    "Transport Jobs": "https://fred.stlouisfed.org/series/CES4348400001",
+    "Unemployment": "https://fred.stlouisfed.org/series/UNRATE",
+    "USHY": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2",
+    "USIG": "https://fred.stlouisfed.org/series/BAMLC0A0CM",
+    "VIX": "https://fred.stlouisfed.org/series/VIXCLS",
+}
+
+PUBLICATION_FREQUENCIES = {
+    "3-Month": "Daily",
+    "20-Year": "Daily",
+    "30-Year": "Daily",
+    "Bank Credit": "Weekly",
+    "Claims": "Weekly",
+    "Consumer Sentiment": "Monthly",
+    "Continued Claims": "Weekly",
+    "Core CPI": "Monthly",
+    "CPI": "Monthly",
+    "Credit Card Delinquency": "Quarterly",
+    "Loans and Leases": "Weekly",
+    "M1": "Monthly",
+    "M2": "Monthly",
+    "Mortgage Delinquency": "Quarterly",
+    "Payrolls": "Monthly",
+    "Real FFR": "Monthly",
+    "Real GDP": "Quarterly",
+    "Retail Sales": "Monthly",
+    "Sahm": "Monthly",
+    "SP500": "Daily",
+    "Transport Jobs": "Monthly",
+    "Unemployment": "Monthly",
+    "USHY": "Daily",
+    "USIG": "Daily",
+    "VIX": "Daily",
+    '3MOPayrolls': 'Monthly',
+    '2YearTreasury': 'Daily',
+    '10YearTreasury': 'Daily',
+    'ConstructionJobs': 'Monthly',  # Fixed typo
+    '2s10s': 'Daily'
+}
 
 def format_value(val):
     if pd.isna(val):
@@ -144,6 +236,25 @@ def create_heatmap(df, selected_months):
     color_map = {'gray': 0.0, 'red': 0.001, 'yellow': 0.5, 'green': 1.0}
     z_colors = np.array([[color_map.get(c, 0.0) for c in row] for row in colors])
 
+    # Calculate dynamic row height to maintain consistent appearance
+    num_rows = len(pivot_df)
+    min_height = 600  # Minimum height to ensure readability
+    max_height = 1600  # Maximum height to prevent excessive size
+    default_rows = 36  # Reference number of rows for default appearance
+    default_row_height = 40  # Default row height (1440 / 36 = 40 pixels per row)
+    
+    # Scale row height inversely with number of rows to maintain readability
+    if num_rows <= default_rows:
+        row_height = default_row_height * (default_rows / max(num_rows, 3))  # Avoid division by zero
+    else:
+        row_height = default_row_height  # Use default row height for >36 rows
+    
+    # Set total height with a minimum to ensure readability
+    total_height = max(min_height, min(max_height, row_height * num_rows))
+    
+    # Adjust font size based on number of rows to maintain readability
+    font_size = 10 if num_rows <= 12 else 8 if num_rows <= 24 else 6
+
     fig = go.Figure(data=go.Heatmap(
         z=z_colors,
         x=[ATTRIBUTE_LABELS.get(attr, attr) for attr in pivot_df.columns],
@@ -171,18 +282,18 @@ def create_heatmap(df, selected_months):
                     y=dt.strftime("%b %Y"),
                     text=format_value(val),
                     showarrow=False,
-                    font=dict(color="black", size=10),
+                    font=dict(color="black", size=font_size),
                     xanchor="center",
                     yanchor="middle"
                 ))
 
     fig.update_layout(
-        xaxis=dict(side='top'),
-        yaxis=dict(autorange='reversed'),
+        xaxis=dict(side='top', tickfont=dict(size=font_size)),
+        yaxis=dict(autorange='reversed', tickfont=dict(size=font_size)),
         annotations=annotations,
         margin=dict(l=150, r=20, t=120, b=40),
         template='plotly_white',
-        height=min(1600, 40 * len(pivot_df))
+        height=total_height
     )
 
     return fig
@@ -234,7 +345,17 @@ def main():
         ])
         st.dataframe(threshold_df, use_container_width=True)
 
-    # [Rest of FRED sources expander and main function remains unchanged]
+    with st.expander("📎 View FRED Data Source Reference", expanded=False):
+        st.markdown("Each metric below links directly to its FRED series page.")
+        st.markdown(
+            "<table><thead><tr><th>Data Point</th><th>FRED Link</th><th>Publication Frequency</th></tr></thead><tbody>" +
+            "".join(
+                f"<tr><td>{ATTRIBUTE_LABELS.get(dp, dp)}</td><td><a href='{url}' target='_blank'>{url}</a></td><td>{PUBLICATION_FREQUENCIES.get(dp, 'N/A')}</td></tr>"
+                for dp, url in FRED_SOURCES.items()
+            ) +
+            "</tbody></table>",
+            unsafe_allow_html=True
+        )
 
     df = load_data()
 
