@@ -30,6 +30,11 @@ THRESHOLDS = {
     'USHY': {'green': 5.0, 'yellow': 7.0, 'red_expl': 'Risk premium surging', 'inverted': False},
     'USIG': {'green': 3.0, 'yellow': 4.5, 'red_expl': 'Credit stress in investment grade', 'inverted': False},
     'VIX': {'green': 20, 'yellow': 30, 'red_expl': 'High market volatility', 'inverted': False},
+    '3MOPayrolls': {'green': 150, 'yellow': 100, 'red_expl': 'Recent job momentum declining', 'inverted': True},
+    '2YearTreasury': {'green': 3.5, 'yellow': 4.5, 'red_expl': 'Short-term rate stress', 'inverted': False},
+    '10YearTreasury': {'green': 3.5, 'yellow': 4.5, 'red_expl': 'Mid-term borrowing costs high', 'inverted': False},
+    'ConstructionJobs': {'green': 7800, 'yellow': 7600, 'red_expl': 'Housing and infrastructure slowdown', 'inverted': True},
+    '2s10s': {'green': 0.5, 'yellow': 0.0, 'red_expl': 'Curve inversion signals recession risk', 'inverted': True},
 }
 
 # Attribute labels for renaming
@@ -59,6 +64,11 @@ ATTRIBUTE_LABELS = {
     'USHY': 'US HY Index',
     'USIG': 'US IG Index',
     'VIX': 'VIX',
+    '3MOPayrolls': '3-Month Payroll Avg (Thousands)',
+    '2YearTreasury': '2-Year Treasury',
+    '10YearTreasury': '10-Year Treasury',
+    'ConstrucitonJobs': 'Construction Jobs',
+    '2s10s': '2s10s Spread',
 }
 
 FRED_SOURCES = {
@@ -115,7 +125,12 @@ PUBLICATION_FREQUENCIES = {
     "Unemployment": "Monthly",
     "USHY": "Daily",
     "USIG": "Daily",
-    "VIX": "Daily"
+    "VIX": "Daily",
+    '3MOPayrolls': 'Monthly',
+    '2YearTreasury': 'Daily',
+    '10YearTreasury': 'Daily',
+    'ConstrucitonJobs': 'Monthly',
+    '2s10s': 'Daily'
 }
 
 def format_value(val):
