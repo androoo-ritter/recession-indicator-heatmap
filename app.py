@@ -2,8 +2,18 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import logging
+from datetime import datetime
 
-# Thresholds per attribute with red zone explanation
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Configuration
+CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQSg0j0ZpwXjDgSS1IEA4MA2-SwTbAhNgy8hqQVveM4eeWWIg6zxgMq-NpUIZBzQvssY2LsSo3kfc8x/pub?gid=995887444&single=true&output=csv"
+TTM_ATTRS = ['Bank Credit', 'Loans and Leases', 'M1', 'M2']
+YOY_ATTRS = ['SP500', 'Credit Card Delinquency']
+
 THRESHOLDS = {
     '3-Month': {'green': 2.5, 'yellow': 4.5, 'red_expl': 'Excessively high short-term interest rates', 'inverted': False},
     '20-Year': {'green': 3.5, 'yellow': 4.5, 'red_expl': 'Long-term rates may signal inflation or instability', 'inverted': False},
@@ -24,7 +34,7 @@ THRESHOLDS = {
     'Real GDP': {'green': 1.5, 'yellow': 0.0, 'red_expl': 'Economic contraction', 'inverted': True},
     'Retail Sales': {'green': 680000, 'yellow': 660000, 'red_expl': 'Declining consumer spending (millions)', 'inverted': True},
     'Sahm': {'green': 0.4, 'yellow': 0.7, 'red_expl': 'Likely start of a recession', 'inverted': False},
-    'SP500': {'green': 4800, 'yellow': 4200, 'red_expl': 'Major market decline (index level)', 'inverted': True},
+    'SP500': {'green': 10.0, 'yellow': 0.0, 'red_expl': 'Market decline (YoY %)', 'inverted': True},
     'Transport Jobs': {'green': 6200, 'yellow': 6000, 'red_expl': 'Demand-side weakness (thousands)', 'inverted': True},
     'Unemployment': {'green': 4.0, 'yellow': 5.5, 'red_expl': 'Labor market deterioration', 'inverted': False},
     'USHY': {'green': 5.0, 'yellow': 7.0, 'red_expl': 'Risk premium surging', 'inverted': False},
@@ -32,7 +42,6 @@ THRESHOLDS = {
     'VIX': {'green': 20, 'yellow': 30, 'red_expl': 'High market volatility', 'inverted': False},
 }
 
-# Attribute labels for renaming
 ATTRIBUTE_LABELS = {
     '3-Month': '3-Month Treasury',
     '20-Year': '20-Year Treasury',
@@ -89,7 +98,6 @@ FRED_SOURCES = {
     "VIX": "https://fred.stlouisfed.org/series/VIXCLS",
 }
 
-# Define the publication frequencies dictionary
 PUBLICATION_FREQUENCIES = {
     "3-Month": "Daily",
     "20-Year": "Daily",
@@ -115,29 +123,93 @@ PUBLICATION_FREQUENCIES = {
     "Unemployment": "Monthly",
     "USHY": "Daily",
     "USIG": "Daily",
-    "VIX": "Daily"
+    "VIX": "Daily",
 }
 
-def format_value(val):
+def format_value(val, attr=None):
     if pd.isna(val):
         return "N/A"
     if isinstance(val, (int, float)):
-        if abs(val) >= 1000:
+        percent_attrs = ['Credit Card Delinquency', 'SP500']
+        if attr in percent_attrs:
+            return f"{val:.2f}%"
+        elif abs(val) >= 1000:
             return f"{val:,.0f}"
         else:
             return f"{val:.2f}"
     return str(val)
 
-CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQSg0j0ZpwXjDgSS1IEA4MA2-SwTbAhNgy8hqQVveM4eeWWIg6zxgMq-NpUIZBzQvssY2LsSo3kfc8x/pub?gid=995887444&single=true&output=csv"
-
 @st.cache_data
-def load_data():
-    df = pd.read_csv(CSV_URL)
-    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-    df['Value'] = pd.to_numeric(df['Value'], errors='coerce')
-    df = df.dropna(subset=['Date', 'Value'])
-    df['MonthYear'] = df['Date'].dt.to_period('M').dt.to_timestamp()
-    return df
+def load_and_preprocess_data():
+    """Load and preprocess Combined Data CSV."""
+    try:
+        logger.info("Loading Combined Data CSV")
+        df = pd.read_csv(CSV_URL)
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        df['Value'] = pd.to_numeric(df['Value'], errors='coerce')
+        df = df.dropna(subset=['Date', 'Value', 'Attribute'])
+        df['MonthYear'] = df['Date'].dt.to_period('M').dt.to_timestamp()
+        
+        logger.info(f"Loaded {len(df)} rows of data")
+        
+        # Aggregate to monthly averages to handle daily/weekly data
+        monthly_avg = df.groupby(['Attribute', 'MonthYear'])['Value'].mean().reset_index()
+        
+        # Initialize results
+        attributes = monthly_avg['Attribute'].unique()
+        months = pd.date_range(
+            monthly_avg['MonthYear'].min(), 
+            monthly_avg['MonthYear'].max(), 
+            freq='MS'
+        )
+        results = []
+        
+        with st.progress(0, text="Preprocessing data..."):
+            total_steps = len(attributes)
+            for idx, attr in enumerate(attributes):
+                attr_df = monthly_avg[monthly_avg['Attribute'] == attr].set_index('MonthYear')
+                calc_type = 'TTM' if attr in TTM_ATTRS else 'YoY' if attr in YOY_ATTRS else 'Median'
+                
+                for month in months:
+                    if calc_type == 'TTM':
+                        # Trailing 12-month average
+                        start = month - pd.offsets.MonthBegin(12)
+                        window = attr_df.loc[start:month]['Value']
+                        if len(window) >= 12:
+                            value = window.mean().round(2)
+                        else:
+                            value = np.nan
+                    elif calc_type == 'YoY':
+                        # Year-over-year % change
+                        current = attr_df.loc[month:month]['Value']
+                        prior = attr_df.loc[month - pd.offsets.MonthBegin(12):month - pd.offsets.MonthBegin(12)]['Value']
+                        if not current.empty and not prior.empty and prior.iloc[0] != 0:
+                            value = ((current.iloc[0] - prior.iloc[0]) / prior.iloc[0] * 100).round(2)
+                        else:
+                            value = np.nan
+                    else:
+                        # Median (monthly average)
+                        current = attr_df.loc[month:month]['Value']
+                        value = current.mean().round(2) if not current.empty else np.nan
+                    
+                    results.append({
+                        'Attribute': attr,
+                        'MonthYear': month,
+                        'Value': value,
+                        'CalculationType': calc_type
+                    })
+                
+                # Update progress
+                st.progress((idx + 1) / total_steps, text=f"Processing {attr}...")
+        
+        precomputed_df = pd.DataFrame(results)
+        precomputed_df = precomputed_df.dropna(subset=['Value'])
+        logger.info(f"Precomputed {len(precomputed_df)} rows")
+        return precomputed_df
+    except Exception as e:
+        logger.error(f"Error loading/preprocessing data: {e}")
+        st.error(f"Failed to load data: {e}")
+        return pd.DataFrame()
 
 def color_for_value(attr, val):
     if pd.isna(val):
@@ -161,81 +233,96 @@ def color_for_value(attr, val):
             return 'red'
 
 def create_heatmap(df, selected_months):
-    attributes = df['Attribute'].unique()
-    all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
-    full_index = pd.MultiIndex.from_product([attributes, all_months], names=['Attribute', 'MonthYear'])
+    try:
+        logger.info("Starting heatmap creation")
+        full_df = df[df['MonthYear'].isin(selected_months)]
+        if full_df.empty:
+            logger.warning("No data available for selected months")
+            st.warning("No data available for the selected months.")
+            return None
 
-    median_df = df.groupby(['Attribute', 'MonthYear'])['Value'].median().round(2)
-    full_df = median_df.reindex(full_index).reset_index()
-    full_df = full_df[full_df['MonthYear'].isin(selected_months)]
+        pivot_df = full_df.pivot(index='MonthYear', columns='Attribute', values='Value').sort_index(ascending=False)
+        logger.info(f"Pivot table created with {len(pivot_df)} rows")
 
-    pivot_df = full_df.pivot(index='MonthYear', columns='Attribute', values='Value').sort_index(ascending=False)
+        colors = []
+        for dt in pivot_df.index:
+            colors.append([color_for_value(attr, pivot_df.at[dt, attr]) for attr in pivot_df.columns])
 
-    colors = []
-    for dt in pivot_df.index:
-        colors.append([color_for_value(attr, pivot_df.at[dt, attr]) for attr in pivot_df.columns])
+        hover_text = []
+        for dt in pivot_df.index:
+            row = []
+            dt_str = dt.strftime("%b %Y")
+            for attr in pivot_df.columns:
+                val = pivot_df.at[dt, attr]
+                val_str = format_value(val, attr=attr)
+                calc_type = "TTM" if attr in TTM_ATTRS else "YoY %" if attr in YOY_ATTRS else "Median"
+                row.append(f"<b>{ATTRIBUTE_LABELS.get(attr, attr)}</b><br>{dt_str}<br>{calc_type}: {val_str}")
+            hover_text.append(row)
 
-    hover_text = []
-    for dt in pivot_df.index:
-        row = []
-        dt_str = dt.strftime("%b %Y")
-        for attr in pivot_df.columns:
-            val = pivot_df.at[dt, attr]
-            val_str = format_value(val)
-            row.append(f"<b>{attr}</b><br>{dt_str}<br>Median: {val_str}")
-        hover_text.append(row)
+        color_map = {'gray': 0.0, 'green': 0.001, 'yellow': 0.5, 'red': 1.0}
+        z_colors = np.array([[color_map.get(c, 0.0) for c in row] for row in colors])
 
-    color_map = {'gray': 0.0, 'green': 0.001, 'yellow': 0.5, 'red': 1.0}
-    z_colors = np.array([[color_map.get(c, 0.0) for c in row] for row in colors])
+        num_rows = len(pivot_df)
+        min_height = 600
+        max_height = 1600
+        default_row_height = 40
+        total_height = max(min_height, min(max_height, default_row_height * num_rows))
+        font_size = 10 if num_rows <= 12 else 8 if num_rows <= 24 else 6
 
-    fig = go.Figure(data=go.Heatmap(
-        z=z_colors,
-        x=[ATTRIBUTE_LABELS.get(attr, attr) for attr in pivot_df.columns],
-        y=[d.strftime("%b %Y") for d in pivot_df.index],
-        text=hover_text,
-        hoverinfo='text',
-        colorscale=[
-            [0.0, 'lightgray'],
-            [0.001, 'green'],
-            [0.5, 'yellow'],
-            [1.0, 'red']
-        ],
-        showscale=False,
-        xgap=2,
-        ygap=2
-    ))
+        fig = go.Figure(data=go.Heatmap(
+            z=z_colors,
+            x=[ATTRIBUTE_LABELS.get(attr, attr) for attr in pivot_df.columns],
+            y=[d.strftime("%b %Y") for d in pivot_df.index],
+            text=hover_text,
+            hoverinfo='text',
+            colorscale=[
+                [0.0, 'lightgray'],
+                [0.001, 'green'],
+                [0.5, 'yellow'],
+                [1.0, 'red']
+            ],
+            showscale=False,
+            xgap=2,
+            ygap=2
+        ))
 
-    annotations = []
-    for y_idx, dt in enumerate(pivot_df.index):
-        for x_idx, attr in enumerate(pivot_df.columns):
-            val = pivot_df.at[dt, attr]
-            if pd.notnull(val):
-                annotations.append(dict(
-                    x=ATTRIBUTE_LABELS.get(attr, attr),
-                    y=dt.strftime("%b %Y"),
-                    text=format_value(val),
-                    showarrow=False,
-                    font=dict(color="black", size=10),
-                    xanchor="center",
-                    yanchor="middle"
-                ))
+        annotations = []
+        for y_idx, dt in enumerate(pivot_df.index):
+            for x_idx, attr in enumerate(pivot_df.columns):
+                val = pivot_df.at[dt, attr]
+                if pd.notnull(val):
+                    annotations.append(dict(
+                        x=ATTRIBUTE_LABELS.get(attr, attr),
+                        y=dt.strftime("%b %Y"),
+                        text=format_value(val, attr=attr),
+                        showarrow=False,
+                        font=dict(color="black", size=font_size),
+                        xanchor="center",
+                        yanchor="middle"
+                    ))
 
-    fig.update_layout(
-        xaxis=dict(side='top'),
-        yaxis=dict(autorange='reversed'),
-        annotations=annotations,
-        margin=dict(l=150, r=20, t=120, b=40),
-        template='plotly_white',
-        height=min(1600, 40 * len(pivot_df))
-    )
+        fig.update_layout(
+            xaxis=dict(side='top', tickfont=dict(size=font_size)),
+            yaxis=dict(autorange='reversed', tickfont=dict(size=font_size)),
+            annotations=annotations,
+            margin=dict(l=150, r=20, t=120, b=40),
+            template='plotly_white',
+            height=total_height
+        )
 
-    return fig
+        logger.info("Heatmap figure created successfully")
+        return fig
+    except Exception as e:
+        logger.error(f"Error creating heatmap: {e}")
+        st.error(f"Failed to create heatmap: {e}")
+        return None
 
 def main():
     st.set_page_config(page_title="MacroGamut Economic Recession Indicator", layout="wide")
 
     if st.button("🔄 Refresh Data from Source"):
         st.cache_data.clear()
+        st.experimental_rerun()
 
     st.markdown("""
         <div style='display: flex; align-items: center; gap: 15px; margin-bottom: -10px;'>
@@ -250,8 +337,10 @@ def main():
         It is intended for **educational purposes only** and **should not be interpreted as financial or investment advice**.  
         Please independently verify any figures you use from this page.  
 
-        Given that each economic indicator is published at different intervals (daily, monthly, quarterly, etc.),  
-        this tool aggregates data by computing the **median value for each indicator for each respective month**.
+        Data is aggregated as follows:
+        - **Bank Credit, Loans and Leases, M1, M2**: Trailing Twelve Months (TTM) average
+        - **SP500, Credit Card Delinquency**: Year-over-Year (YoY) % change
+        - **Other indicators**: Median value for each respective month
         """)
 
     with st.expander("🟩 Color Legend", expanded=False):
@@ -287,7 +376,12 @@ def main():
             unsafe_allow_html=True
         )
 
-    df = load_data()
+    with st.spinner("Loading data..."):
+        df = load_and_preprocess_data()
+
+    if df.empty:
+        st.error("No data loaded. Please check the CSV URL or try refreshing.")
+        return
 
     all_months = pd.date_range(df['MonthYear'].min(), df['MonthYear'].max(), freq='MS').to_period('M').to_timestamp()
     all_months = sorted(all_months, reverse=True)
@@ -301,8 +395,12 @@ def main():
     )
     selected_months = [month_map[label] for label in selected_labels] if selected_labels else all_months
 
-    fig = create_heatmap(df, selected_months)
-    st.plotly_chart(fig, use_container_width=True)
+    with st.spinner("Generating heatmap..."):
+        fig = create_heatmap(df, selected_months)
+        if fig is not None:
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.error("Failed to generate heatmap. Please check the logs or try a different month selection.")
 
 if __name__ == "__main__":
     main()
